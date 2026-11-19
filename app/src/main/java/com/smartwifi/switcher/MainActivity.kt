@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.smartwifi.switcher.service.ShizukuManager
 import com.smartwifi.switcher.ui.screens.HomeScreen
-import com.smartwifi.switcher.ui.screens.MapPickerScreen
+import com.smartwifi.switcher.ui.screens.RadarMapScreen
 import com.smartwifi.switcher.ui.theme.SmartWifiSwitchTheme
 import com.smartwifi.switcher.ui.viewmodel.ZoneViewModel
 import rikka.shizuku.Shizuku
@@ -121,18 +121,21 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         "map_picker" -> {
-                            MapPickerScreen(
+                            RadarMapScreen(
+                                zones = zones,
+                                activeSsid = networkSummary.currentSsid,
                                 onNavigateBack = { currentScreen = "home" },
                                 onSaveZone = { newZone ->
                                     viewModel.saveZone(newZone) { success, error ->
                                         if (success) {
-                                            Toast.makeText(this, "Zona '${newZone.name}' guardada y activada", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(this, "Zona '${newZone.name}' fijada en el radar", Toast.LENGTH_SHORT).show()
                                             currentScreen = "home"
                                         } else {
-                                            Toast.makeText(this, "Error al activar: $error", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(this, "Error: $error", Toast.LENGTH_LONG).show()
                                         }
                                     }
-                                }
+                                },
+                                onDeleteZone = { viewModel.deleteZone(it) }
                             )
                         }
                     }

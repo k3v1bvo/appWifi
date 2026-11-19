@@ -89,13 +89,13 @@ fun MapPickerScreen(
         circleOverlay?.let { mapView.overlays.remove(it) }
         centerMarker?.let { mapView.overlays.remove(it) }
 
-        val circlePoints = Polygon.pointsAsCircle(selectedLocation, radiusMeters.toDouble())
+            val circlePoints = Polygon.pointsAsCircle(selectedLocation, radiusMeters.toDouble())
         val polygon = Polygon(mapView).apply {
             points = circlePoints
-            fillPaint.color = AndroidColor.argb(55, 37, 99, 235)
+            fillPaint.color = AndroidColor.argb(55, 0, 210, 255)
             fillPaint.style = Paint.Style.FILL
-            outlinePaint.color = AndroidColor.rgb(59, 130, 246)
-            outlinePaint.strokeWidth = 3f
+            outlinePaint.color = AndroidColor.rgb(0, 210, 255)
+            outlinePaint.strokeWidth = 3.5f
         }
         mapView.overlays.add(polygon)
         circleOverlay = polygon
@@ -215,7 +215,8 @@ fun MapPickerScreen(
                 AndroidView(
                     factory = { ctx ->
                         MapView(ctx).apply {
-                            setTileSource(TileSourceFactory.MAPNIK)
+                            setTileSource(MapTileSources.CARTO_DARK)
+                            isTilesScaledToDpi = true
                             setMultiTouchControls(true)
                             controller.setZoom(16.5)
                             controller.setCenter(selectedLocation)

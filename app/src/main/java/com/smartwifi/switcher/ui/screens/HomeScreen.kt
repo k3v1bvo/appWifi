@@ -140,6 +140,7 @@ fun HomeScreen(
             WolowBottomNav(
                 onOpenZones = { /* already in home */ },
                 onOpenDiagnostic = { showTestBench = true },
+                onOpenRadarMap = onOpenMapPicker,
                 onOpenLogs = { showLogsDialog = true }
             )
         }
@@ -180,6 +181,71 @@ fun HomeScreen(
                     summary = networkSummary,
                     matchedZone = matchedZone
                 )
+            }
+
+            // 3b. Radar Geográfico Map Launcher Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(GlowCyan),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Map,
+                                    contentDescription = null,
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Radar de Zonas en Vivo",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ContentPrimary
+                                )
+                                Text(
+                                    text = "Mapa Dark Matter • ${zones.size} perímetros activos",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ContentTertiary
+                                )
+                            }
+                        }
+
+                        FilledTonalButton(
+                            onClick = onOpenMapPicker,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = AccentCyan.copy(alpha = 0.15f),
+                                contentColor = AccentCyan
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Abrir Radar", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
 
             // 4. Quick Add Presets Bar ("Casa", "Trabajo", "Casa Juan", "Mapa")
@@ -887,6 +953,7 @@ private fun WolowEmptyStateCard(onAddClick: () -> Unit) {
 private fun WolowBottomNav(
     onOpenZones: () -> Unit,
     onOpenDiagnostic: () -> Unit,
+    onOpenRadarMap: () -> Unit,
     onOpenLogs: () -> Unit
 ) {
     Surface(
@@ -911,6 +978,11 @@ private fun WolowBottomNav(
                 label = "Escudo",
                 isSelected = true,
                 onClick = onOpenZones
+            )
+            BottomNavItem(
+                icon = Icons.Filled.Map,
+                label = "Radar Mapa",
+                onClick = onOpenRadarMap
             )
             BottomNavItem(
                 icon = Icons.Outlined.FormatListBulleted,
