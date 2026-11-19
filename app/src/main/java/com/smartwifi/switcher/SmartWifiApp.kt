@@ -1,6 +1,7 @@
 package com.smartwifi.switcher
 
 import android.app.Application
+import android.content.Context
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
@@ -13,11 +14,14 @@ class SmartWifiApp : Application() {
         super.onCreate()
         instance = this
 
-        // Initialize OSMDroid cache configuration
+        // Initialize OSMDroid cache configuration with valid user agent (no API key required, zero watermarks)
         val osmConfig = Configuration.getInstance()
-        osmConfig.userAgentValue = packageName
-        osmConfig.osmdroidBasePath = File(cacheDir, "osmdroid")
-        osmConfig.osmdroidTileCache = File(cacheDir, "osmdroid/tiles")
+        osmConfig.load(this, getSharedPreferences("osmdroid_config", Context.MODE_PRIVATE))
+        osmConfig.userAgentValue = "SmartWifiSwitch/1.0.0 (Linux; Android ${Build.VERSION.RELEASE}; ${Build.MODEL})"
+        val baseDir = File(cacheDir, "osmdroid").apply { mkdirs() }
+        val tileDir = File(baseDir, "tiles").apply { mkdirs() }
+        osmConfig.osmdroidBasePath = baseDir
+        osmConfig.osmdroidTileCache = tileDir
 
         createNotificationChannels()
     }

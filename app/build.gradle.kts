@@ -76,6 +76,9 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     debugImplementation(libs.androidx.ui.tooling)
 
+    // QR Code Generation for Wi-Fi sharing
+    implementation("com.google.zxing:core:3.5.3")
+
     // Room Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

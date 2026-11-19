@@ -98,8 +98,8 @@ class MainActivity : ComponentActivity() {
                                 onToggleService = { viewModel.toggleService(it) },
                                 onToggleZone = { zone, enabled -> viewModel.toggleZoneEnabled(zone, enabled) },
                                 onDeleteZone = { viewModel.deleteZone(it) },
-                                onQuickAddZone = { name, ssid, lat, lng, radius ->
-                                    viewModel.quickAddZone(name, ssid, lat, lng, radius) { success, error ->
+                                onQuickAddZone = { name, ssid, password, category, notes, lat, lng, radius ->
+                                    viewModel.quickAddZone(name, ssid, password, category, notes, lat, lng, radius) { success, error ->
                                         if (success) {
                                             Toast.makeText(this, "Zona '$name' guardada y activada", Toast.LENGTH_SHORT).show()
                                         } else {

@@ -47,7 +47,7 @@ fun HomeScreen(
     onToggleService: (Boolean) -> Unit,
     onToggleZone: (GeoZone, Boolean) -> Unit,
     onDeleteZone: (GeoZone) -> Unit,
-    onQuickAddZone: (name: String, ssid: String?, lat: Double, lng: Double, radius: Float) -> Unit,
+    onQuickAddZone: (name: String, ssid: String?, password: String?, category: String, notes: String?, lat: Double, lng: Double, radius: Float) -> Unit,
     onOpenMapPicker: () -> Unit,
     onRequestShizukuPermission: () -> Unit,
     onClearLogs: () -> Unit,
@@ -59,6 +59,7 @@ fun HomeScreen(
     var showLogsDialog by remember { mutableStateOf(false) }
     var showQuickAddDialog by remember { mutableStateOf(false) }
     var quickAddInitialPreset by remember { mutableStateOf("Casa") }
+    var selectedZoneForQr by remember { mutableStateOf<GeoZone?>(null) }
 
     // Dialogs
     if (showXiaomiGuide) {
@@ -81,12 +82,24 @@ fun HomeScreen(
         )
     }
 
+    if (selectedZoneForQr != null) {
+        val z = selectedZoneForQr!!
+        val ssid = z.getSsidList().firstOrNull() ?: z.linkedWifiSsids ?: z.name
+        WifiQrDialog(
+            placeName = z.name,
+            ssid = ssid,
+            password = z.wifiPassword,
+            notes = z.notes,
+            onDismiss = { selectedZoneForQr = null }
+        )
+    }
+
     if (showQuickAddDialog) {
         QuickAddZoneDialog(
             initialPreset = quickAddInitialPreset,
             onDismiss = { showQuickAddDialog = false },
-            onSave = { name, ssid, lat, lng, radius ->
-                onQuickAddZone(name, ssid, lat, lng, radius)
+            onSave = { name, ssid, password, category, notes, lat, lng, radius ->
+                onQuickAddZone(name, ssid, password, category, notes, lat, lng, radius)
                 showQuickAddDialog = false
             },
             onOpenMapPicker = {
@@ -299,7 +312,8 @@ fun HomeScreen(
                         zone = zone,
                         isCurrentlyHere = isCurrentlyHere,
                         onToggle = { isEnabled -> onToggleZone(zone, isEnabled) },
-                        onDelete = { onDeleteZone(zone) }
+                        onDelete = { onDeleteZone(zone) },
+                        onOpenQr = { selectedZoneForQr = zone }
                     )
                 }
             }
@@ -742,13 +756,22 @@ private fun ZoneItemCard(
     zone: GeoZone,
     isCurrentlyHere: Boolean,
     onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onOpenQr: () -> Unit
 ) {
-    val zoneIcon = when {
-        zone.name.contains("casa", ignoreCase = true) && !zone.name.contains("juan", ignoreCase = true) -> Icons.Outlined.Home
-        zone.name.contains("trabajo", ignoreCase = true) || zone.name.contains("oficina", ignoreCase = true) -> Icons.Outlined.Work
-        zone.name.contains("juan", ignoreCase = true) || zone.name.contains("amigo", ignoreCase = true) -> Icons.Outlined.Person
-        else -> Icons.Outlined.Place
+    val zoneIcon = when (zone.category) {
+        "HOME" -> Icons.Outlined.Home
+        "WORK" -> Icons.Outlined.Work
+        "FRIEND" -> Icons.Outlined.Person
+        "SCHOOL" -> Icons.Outlined.School
+        "GYM" -> Icons.Outlined.FitnessCenter
+        "CAFE" -> Icons.Outlined.LocalCafe
+        else -> when {
+            zone.name.contains("casa", ignoreCase = true) && !zone.name.contains("juan", ignoreCase = true) -> Icons.Outlined.Home
+            zone.name.contains("trabajo", ignoreCase = true) || zone.name.contains("oficina", ignoreCase = true) -> Icons.Outlined.Work
+            zone.name.contains("juan", ignoreCase = true) || zone.name.contains("amigo", ignoreCase = true) -> Icons.Outlined.Person
+            else -> Icons.Outlined.Place
+        }
     }
 
     Card(
@@ -880,6 +903,49 @@ private fun ZoneItemCard(
                     Text("AL SALIR", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
                     Spacer(modifier = Modifier.height(2.dp))
                     Text("Wi-Fi Off • Megas On", style = MaterialTheme.typography.labelMedium, color = AccentCyan)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Divider(color = SurfaceBorder, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Password and QR Sharing Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.Key,
+                        contentDescription = null,
+                        tint = if (!zone.wifiPassword.isNullOrBlank()) AccentEmerald else ContentTertiary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (!zone.wifiPassword.isNullOrBlank()) "Clave: ••••••••" else "Sin clave guardada",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (!zone.wifiPassword.isNullOrBlank()) ContentPrimary else ContentTertiary
+                    )
+                }
+
+                FilledTonalButton(
+                    onClick = onOpenQr,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = AccentCyan.copy(alpha = 0.15f),
+                        contentColor = AccentCyan
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Filled.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Ver QR / Clave", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
             }
         }

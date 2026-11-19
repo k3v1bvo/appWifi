@@ -93,6 +93,9 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
     fun quickAddZone(
         name: String,
         ssid: String?,
+        password: String? = null,
+        category: String = "CUSTOM",
+        notes: String? = null,
         latitude: Double,
         longitude: Double,
         radiusMeters: Float = 120f,
@@ -111,7 +114,10 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
             linkedWifiSsids = ssid?.takeIf { it.isNotBlank() },
             batteryMode = "HYBRID",
             disconnectBufferSeconds = 20,
-            vibrateOnAction = true
+            vibrateOnAction = true,
+            wifiPassword = password?.takeIf { it.isNotBlank() },
+            category = category,
+            notes = notes?.takeIf { it.isNotBlank() }
         )
         saveZone(newZone) { success, error ->
             if (success) {
@@ -121,13 +127,41 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
                     logDao.insertLog(
                         ActivityLog(
                             title = "➕ Zona creada: $name",
-                            description = "Red vinculada: ${ssid ?: "GPS puro"} • Protección de megas activada.",
+                            description = "Red: ${ssid ?: "GPS puro"}${if (!password.isNullOrBlank()) " • Clave guardada" else ""} • Protección de megas activada.",
                             type = "CONFIG"
                         )
                     )
                 }
             }
             onComplete(success, error)
+        }
+    }
+
+    fun extractAndSyncSystemWifiPasswords(onResult: (Int) -> Unit) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val creds = com.smartwifi.switcher.service.WifiKeychainHelper.extractSystemSavedCredentials()
+            if (creds.isEmpty()) {
+                onResult(0)
+                return@launch
+            }
+            val currentZones = zoneDao.getAllZonesList()
+            var updatedCount = 0
+            for (zone in currentZones) {
+                if (zone.wifiPassword.isNullOrBlank()) {
+                    val ssids = zone.getSsidList()
+                    val matchedKey = creds.keys.firstOrNull { credSsid ->
+                        ssids.any { it.equals(credSsid, ignoreCase = true) }
+                    }
+                    if (matchedKey != null) {
+                        val pass = creds[matchedKey]
+                        if (!pass.isNullOrBlank()) {
+                            zoneDao.updateZone(zone.copy(wifiPassword = pass))
+                            updatedCount++
+                        }
+                    }
+                }
+            }
+            onResult(updatedCount)
         }
     }
 

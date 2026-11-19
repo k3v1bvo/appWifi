@@ -63,4 +63,30 @@ object ShizukuManager {
             }
         }
     }
+
+    fun executeShellWithOutput(command: String): String? {
+        if (!hasPermission()) return null
+        return try {
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor()
+            output.ifBlank { null }
+        } catch (e: Exception) {
+            try {
+                val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                val output = proc.inputStream.bufferedReader().use { it.readText() }
+                proc.waitFor()
+                output.ifBlank { null }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 }

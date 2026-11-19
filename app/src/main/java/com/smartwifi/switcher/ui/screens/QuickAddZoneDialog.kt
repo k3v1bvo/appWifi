@@ -1,13 +1,18 @@
 package com.smartwifi.switcher.ui.screens
 
 import android.location.Location
+import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -21,10 +26,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.google.android.gms.location.LocationServices
+import com.smartwifi.switcher.service.NearbyWifiItem
 import com.smartwifi.switcher.service.WifiHelper
+import com.smartwifi.switcher.service.WifiKeychainHelper
 import com.smartwifi.switcher.ui.theme.*
 import kotlin.math.roundToInt
 
@@ -32,20 +42,36 @@ import kotlin.math.roundToInt
 fun QuickAddZoneDialog(
     initialPreset: String = "Casa",
     onDismiss: () -> Unit,
-    onSave: (name: String, ssid: String?, lat: Double, lng: Double, radius: Float) -> Unit,
+    onSave: (name: String, ssid: String?, password: String?, category: String, notes: String?, lat: Double, lng: Double, radius: Float) -> Unit,
     onOpenMapPicker: () -> Unit
 ) {
     val context = LocalContext.current
-    var selectedPreset by remember { mutableStateOf(initialPreset) }
+    var selectedCategory by remember {
+        mutableStateOf(
+            when (initialPreset) {
+                "Casa" -> "HOME"
+                "Trabajo" -> "WORK"
+                "Casa Juan" -> "FRIEND"
+                else -> "CUSTOM"
+            }
+        )
+    }
     var zoneName by remember { mutableStateOf(initialPreset) }
 
     val detectedSsid = remember { WifiHelper.getCurrentSsid(context) }
     var ssidInput by remember { mutableStateOf(detectedSsid ?: "") }
+    var passwordInput by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var notesInput by remember { mutableStateOf("") }
 
     var currentLat by remember { mutableDoubleStateOf(-17.3935) }
     var currentLng by remember { mutableDoubleStateOf(-66.1570) }
     var locationFetched by remember { mutableStateOf(false) }
     var radiusMeters by remember { mutableFloatStateOf(120f) }
+
+    // Nearby Wi-Fi scan state
+    var nearbyNetworks by remember { mutableStateOf<List<NearbyWifiItem>>(emptyList()) }
+    var isScanningWifi by remember { mutableStateOf(false) }
 
     // Auto-fetch current coordinates
     LaunchedEffect(Unit) {
@@ -59,20 +85,31 @@ fun QuickAddZoneDialog(
                 }
             }
         } catch (_: SecurityException) {}
+
+        // Attempt to auto-fill password if system credentials exist
+        if (!detectedSsid.isNullOrBlank()) {
+            val creds = WifiKeychainHelper.extractSystemSavedCredentials()
+            val savedPass = creds[detectedSsid]
+            if (!savedPass.isNullOrBlank()) {
+                passwordInput = savedPass
+            }
+        }
     }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, SurfaceBorderLight, RoundedCornerShape(20.dp)),
+                .fillMaxHeight(0.92f)
+                .border(1.dp, SurfaceBorderLight, RoundedCornerShape(22.dp)),
             colors = CardDefaults.cardColors(containerColor = SurfaceElevated),
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(22.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 // Header
                 Row(
@@ -83,7 +120,7 @@ fun QuickAddZoneDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(GlowCyan),
                             contentAlignment = Alignment.Center
@@ -98,13 +135,13 @@ fun QuickAddZoneDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Zona de Confianza",
+                                text = "Guardar Zona Segura",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = ContentPrimary
                             )
                             Text(
-                                text = "Apaga datos al entrar y ahorra megas",
+                                text = "Apaga datos al entrar y guarda su Wi-Fi",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = ContentTertiary
                             )
@@ -116,50 +153,98 @@ fun QuickAddZoneDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Presets (Casa, Trabajo, Casa Juan, Amigo)
+                // Category Presets
                 Text(
-                    text = "SELECCIONA TIPO DE LUGAR",
+                    text = "CATEGORÍA DEL LUGAR",
                     style = MaterialTheme.typography.labelSmall,
-                    color = ContentTertiary
+                    color = ContentTertiary,
+                    letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    PresetChip(
-                        icon = Icons.Outlined.Home,
-                        label = "Casa",
-                        isSelected = selectedPreset == "Casa",
-                        onClick = {
-                            selectedPreset = "Casa"
-                            zoneName = "Casa"
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    PresetChip(
-                        icon = Icons.Outlined.Work,
-                        label = "Trabajo",
-                        isSelected = selectedPreset == "Trabajo",
-                        onClick = {
-                            selectedPreset = "Trabajo"
-                            zoneName = "Trabajo"
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    PresetChip(
-                        icon = Icons.Outlined.Person,
-                        label = "Casa Juan",
-                        isSelected = selectedPreset == "Casa Juan",
-                        onClick = {
-                            selectedPreset = "Casa Juan"
-                            zoneName = "Casa Juan"
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.Home,
+                            label = "Casa",
+                            isSelected = selectedCategory == "HOME",
+                            onClick = {
+                                selectedCategory = "HOME"
+                                zoneName = "Casa"
+                            }
+                        )
+                    }
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.Work,
+                            label = "Trabajo",
+                            isSelected = selectedCategory == "WORK",
+                            onClick = {
+                                selectedCategory = "WORK"
+                                zoneName = "Trabajo"
+                            }
+                        )
+                    }
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.Person,
+                            label = "Casa Juan / Amigo",
+                            isSelected = selectedCategory == "FRIEND",
+                            onClick = {
+                                selectedCategory = "FRIEND"
+                                zoneName = "Casa Juan"
+                            }
+                        )
+                    }
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.School,
+                            label = "Estudio / Uni",
+                            isSelected = selectedCategory == "SCHOOL",
+                            onClick = {
+                                selectedCategory = "SCHOOL"
+                                zoneName = "Universidad"
+                            }
+                        )
+                    }
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.FitnessCenter,
+                            label = "Gimnasio",
+                            isSelected = selectedCategory == "GYM",
+                            onClick = {
+                                selectedCategory = "GYM"
+                                zoneName = "Gimnasio"
+                            }
+                        )
+                    }
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.LocalCafe,
+                            label = "Cafetería",
+                            isSelected = selectedCategory == "CAFE",
+                            onClick = {
+                                selectedCategory = "CAFE"
+                                zoneName = "Cafetería"
+                            }
+                        )
+                    }
+                    item {
+                        PresetChip(
+                            icon = Icons.Outlined.Place,
+                            label = "Otro",
+                            isSelected = selectedCategory == "CUSTOM",
+                            onClick = {
+                                selectedCategory = "CUSTOM"
+                                if (zoneName.isBlank() || zoneName == "Casa") zoneName = "Nuevo Lugar"
+                            }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -168,7 +253,7 @@ fun QuickAddZoneDialog(
                 OutlinedTextField(
                     value = zoneName,
                     onValueChange = { zoneName = it },
-                    label = { Text("Nombre de la ubicación") },
+                    label = { Text("Nombre del lugar") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -189,16 +274,24 @@ fun QuickAddZoneDialog(
                 OutlinedTextField(
                     value = ssidInput,
                     onValueChange = { ssidInput = it },
-                    label = { Text("Nombre de la red Wi-Fi (SSID)") },
+                    label = { Text("Nombre de red Wi-Fi (SSID)") },
                     supportingText = {
                         if (detectedSsid != null && ssidInput == detectedSsid) {
-                            Text("✓ Red actual detectada automáticamente", color = AccentEmerald)
+                            Text("✓ Red actual conectada detectada", color = AccentEmerald)
                         } else {
-                            Text("Puedes poner varias separadas por coma", color = ContentTertiary)
+                            Text("Nombre exacto del Wi-Fi de este lugar", color = ContentTertiary)
                         }
                     },
                     leadingIcon = {
                         Icon(Icons.Outlined.Wifi, contentDescription = null, tint = AccentCyan)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            isScanningWifi = true
+                            nearbyNetworks = WifiKeychainHelper.getNearbyWifiNetworks(context)
+                        }) {
+                            Icon(Icons.Outlined.Search, contentDescription = "Escanear Wi-Fi", tint = AccentCyan)
+                        }
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -214,7 +307,93 @@ fun QuickAddZoneDialog(
                     shape = RoundedCornerShape(10.dp)
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                // Nearby Wi-Fi chips if scanned
+                if (isScanningWifi && nearbyNetworks.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Redes detectadas al alcance:", style = MaterialTheme.typography.labelSmall, color = AccentCyan)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(nearbyNetworks) { item ->
+                            Surface(
+                                onClick = {
+                                    ssidInput = item.ssid
+                                    isScanningWifi = false
+                                },
+                                shape = RoundedCornerShape(6.dp),
+                                color = SurfaceCard,
+                                border = BorderStroke(1.dp, SurfaceBorderLight)
+                            ) {
+                                Text(
+                                    text = "📶 ${item.ssid}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ContentPrimary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Wi-Fi Password Field (Keychain / Vault)
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = { passwordInput = it },
+                    label = { Text("Contraseña Wi-Fi (Opcional)") },
+                    supportingText = {
+                        Text("Se guardará en tu llavero para verla o compartirla por QR", color = ContentTertiary)
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Key, contentDescription = null, tint = AccentCyan)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(
+                                if (isPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = "Ver contraseña",
+                                tint = ContentSecondary
+                            )
+                        }
+                    },
+                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ContentPrimary,
+                        unfocusedTextColor = ContentPrimary,
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorder,
+                        focusedLabelColor = AccentCyan,
+                        unfocusedLabelColor = ContentSecondary,
+                        cursorColor = AccentCyan
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Notes Field (Optional)
+                OutlinedTextField(
+                    value = notesInput,
+                    onValueChange = { notesInput = it },
+                    label = { Text("Notas o recordatorios (Opcional)") },
+                    placeholder = { Text("Ej. Piso 3, pedir permiso a Juan") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ContentPrimary,
+                        unfocusedTextColor = ContentPrimary,
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorder,
+                        focusedLabelColor = AccentCyan,
+                        unfocusedLabelColor = ContentSecondary,
+                        cursorColor = AccentCyan
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // GPS & Accuracy Row
                 Surface(
@@ -240,12 +419,12 @@ fun QuickAddZoneDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = if (locationFetched) "Coordenadas fijadas" else "Buscando satélites...",
+                                    text = if (locationFetched) "GPS Fijado con éxito" else "Buscando satélites...",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = ContentPrimary
                                 )
                                 Text(
-                                    text = "Radio Geocerca: ${radiusMeters.roundToInt()}m",
+                                    text = "Radio de geocerca: ${radiusMeters.roundToInt()}m",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = ContentTertiary
                                 )
@@ -256,7 +435,7 @@ fun QuickAddZoneDialog(
                             onClick = onOpenMapPicker,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text("Ver en mapa", style = MaterialTheme.typography.labelSmall, color = AccentCyan)
+                            Text("Ajustar en mapa", style = MaterialTheme.typography.labelSmall, color = AccentCyan)
                         }
                     }
                 }
@@ -283,6 +462,9 @@ fun QuickAddZoneDialog(
                                 onSave(
                                     zoneName.trim(),
                                     ssidInput.trim().ifEmpty { null },
+                                    passwordInput.trim().ifEmpty { null },
+                                    selectedCategory,
+                                    notesInput.trim().ifEmpty { null },
                                     currentLat,
                                     currentLng,
                                     radiusMeters
@@ -313,18 +495,17 @@ private fun PresetChip(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(10.dp),
         color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else SurfaceCard,
         border = BorderStroke(1.dp, if (isSelected) AccentCyan else SurfaceBorder),
-        modifier = modifier.height(44.dp)
+        modifier = Modifier.height(42.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {

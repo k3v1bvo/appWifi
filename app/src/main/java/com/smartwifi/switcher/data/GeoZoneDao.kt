@@ -8,6 +8,9 @@ interface GeoZoneDao {
     @Query("SELECT * FROM geo_zones ORDER BY id DESC")
     fun getAllZones(): Flow<List<GeoZone>>
 
+    @Query("SELECT * FROM geo_zones")
+    suspend fun getAllZonesList(): List<GeoZone>
+
     @Query("SELECT * FROM geo_zones WHERE isEnabled = 1")
     suspend fun getActiveZones(): List<GeoZone>
 

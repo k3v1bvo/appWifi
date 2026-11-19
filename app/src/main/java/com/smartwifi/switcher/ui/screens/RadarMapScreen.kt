@@ -77,6 +77,19 @@ fun RadarMapScreen(
 
     // Selected zone inspector
     var selectedZoneForInspect by remember { mutableStateOf<GeoZone?>(null) }
+    var showQrZone by remember { mutableStateOf<GeoZone?>(null) }
+
+    if (showQrZone != null) {
+        val z = showQrZone!!
+        val ssid = z.getSsidList().firstOrNull() ?: z.linkedWifiSsids ?: z.name
+        WifiQrDialog(
+            placeName = z.name,
+            ssid = ssid,
+            password = z.wifiPassword,
+            notes = z.notes,
+            onDismiss = { showQrZone = null }
+        )
+    }
 
     // Overlays list references
     val zoneOverlays = remember { mutableListOf<Polygon>() }
@@ -382,6 +395,9 @@ fun RadarMapScreen(
                         onDelete = {
                             onDeleteZone(inspectedZone)
                             selectedZoneForInspect = null
+                        },
+                        onOpenQr = {
+                            showQrZone = inspectedZone
                         }
                     )
                 }
@@ -788,7 +804,8 @@ private fun ZoneInspectorCard(
     zone: GeoZone,
     isCurrent: Boolean,
     onDismiss: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onOpenQr: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -858,20 +875,48 @@ private fun ZoneInspectorCard(
                 color = ContentTertiary
             )
 
+            if (!zone.wifiPassword.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Key, contentDescription = null, tint = AccentEmerald, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Clave guardada: ••••••••",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AccentEmerald
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Delete action
+            // Actions row: QR / Clave & Delete
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                FilledTonalButton(
+                    onClick = onOpenQr,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = AccentCyan.copy(alpha = 0.15f),
+                        contentColor = AccentCyan
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Filled.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Ver QR / Clave", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                }
+
                 TextButton(
                     onClick = onDelete,
                     colors = ButtonDefaults.textButtonColors(contentColor = AccentRose)
                 ) {
                     Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Eliminar esta zona", style = MaterialTheme.typography.labelMedium)
+                    Text("Eliminar zona", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

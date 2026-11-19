@@ -20,7 +20,10 @@ data class GeoZone(
     val linkedWifiSsids: String? = null, // Redes Wi-Fi separadas por comas (ej. "MiCasa,MiCasa_5G")
     val batteryMode: String = "HYBRID",   // HYBRID (Zero Batería), GEOFENCE_ONLY, WIFI_ONLY
     val disconnectBufferSeconds: Int = 20, // Buffer anti-pestañeo (15s a 30s)
-    val vibrateOnAction: Boolean = true   // Vibración sutil sin sonido ni invasión
+    val vibrateOnAction: Boolean = true,   // Vibración sutil sin sonido ni invasión
+    val wifiPassword: String? = null,     // Contraseña Wi-Fi de este lugar (llavero seguro)
+    val category: String = "CUSTOM",      // HOME, WORK, FRIEND, SCHOOL, GYM, CAFE, CUSTOM
+    val notes: String? = null             // Notas adicionales o recordatorios (ej. "Preguntar a Juan", "Piso 2")
 ) {
     // Helper to get list of configured SSIDs
     fun getSsidList(): List<String> {
