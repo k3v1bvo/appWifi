@@ -98,6 +98,15 @@ class MainActivity : ComponentActivity() {
                                 onToggleService = { viewModel.toggleService(it) },
                                 onToggleZone = { zone, enabled -> viewModel.toggleZoneEnabled(zone, enabled) },
                                 onDeleteZone = { viewModel.deleteZone(it) },
+                                onUpdateZone = { updatedZone ->
+                                    viewModel.updateZone(updatedZone) { success, error ->
+                                        if (success) {
+                                            Toast.makeText(this, "Zona '${updatedZone.name}' actualizada", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(this, "Error al actualizar: $error", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                },
                                 onQuickAddZone = { name, ssid, password, category, notes, lat, lng, radius ->
                                     viewModel.quickAddZone(name, ssid, password, category, notes, lat, lng, radius) { success, error ->
                                         if (success) {
@@ -135,7 +144,16 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
-                                onDeleteZone = { viewModel.deleteZone(it) }
+                                onDeleteZone = { viewModel.deleteZone(it) },
+                                onUpdateZone = { updatedZone ->
+                                    viewModel.updateZone(updatedZone) { success, error ->
+                                        if (success) {
+                                            Toast.makeText(this, "Zona '${updatedZone.name}' actualizada", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(this, "Error: $error", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
                             )
                         }
                     }

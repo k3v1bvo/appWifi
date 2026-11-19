@@ -47,6 +47,7 @@ fun HomeScreen(
     onToggleService: (Boolean) -> Unit,
     onToggleZone: (GeoZone, Boolean) -> Unit,
     onDeleteZone: (GeoZone) -> Unit,
+    onUpdateZone: (GeoZone) -> Unit = {},
     onQuickAddZone: (name: String, ssid: String?, password: String?, category: String, notes: String?, lat: Double, lng: Double, radius: Float) -> Unit,
     onOpenMapPicker: () -> Unit,
     onRequestShizukuPermission: () -> Unit,
@@ -61,8 +62,24 @@ fun HomeScreen(
     var showQuickAddDialog by remember { mutableStateOf(false) }
     var quickAddInitialPreset by remember { mutableStateOf("Casa") }
     var selectedZoneForQr by remember { mutableStateOf<GeoZone?>(null) }
+    var editingZone by remember { mutableStateOf<GeoZone?>(null) }
 
     // Dialogs
+    if (editingZone != null) {
+        EditZoneDialog(
+            zone = editingZone!!,
+            onDismiss = { editingZone = null },
+            onSave = { updated ->
+                onUpdateZone(updated)
+                editingZone = null
+            },
+            onDelete = { toDelete ->
+                onDeleteZone(toDelete)
+                editingZone = null
+            }
+        )
+    }
+
     if (showXiaomiGuide) {
         XiaomiGuideDialog(onDismiss = { showXiaomiGuide = false })
     }
@@ -284,6 +301,11 @@ fun HomeScreen(
                 )
             }
 
+            // 4b. Interactive How-It-Works Guide Card
+            item {
+                HowItWorksGuideCard(onOpenMap = onOpenMapPicker)
+            }
+
             // 5. Configured Zones Section Header
             item {
                 Row(
@@ -324,6 +346,7 @@ fun HomeScreen(
                         zone = zone,
                         isCurrentlyHere = isCurrentlyHere,
                         onToggle = { isEnabled -> onToggleZone(zone, isEnabled) },
+                        onEdit = { editingZone = zone },
                         onDelete = { onDeleteZone(zone) },
                         onOpenQr = { selectedZoneForQr = zone }
                     )
@@ -768,6 +791,7 @@ private fun ZoneItemCard(
     zone: GeoZone,
     isCurrentlyHere: Boolean,
     onToggle: (Boolean) -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     onOpenQr: () -> Unit
 ) {
@@ -793,7 +817,8 @@ private fun ZoneItemCard(
                 1.dp,
                 if (isCurrentlyHere) AccentEmerald.copy(alpha = 0.5f) else SurfaceBorder,
                 RoundedCornerShape(16.dp)
-            ),
+            )
+            .clickable(onClick = onEdit),
         colors = CardDefaults.cardColors(
             containerColor = if (isCurrentlyHere) Color(0xFF101915) else SurfaceCard
         ),
@@ -946,18 +971,37 @@ private fun ZoneItemCard(
                     )
                 }
 
-                FilledTonalButton(
-                    onClick = onOpenQr,
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = AccentCyan.copy(alpha = 0.15f),
-                        contentColor = AccentCyan
-                    ),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ver QR / Clave", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    FilledTonalButton(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color(0xFF1B2230),
+                            contentColor = AccentCyan
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Editar", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+
+                    FilledTonalButton(
+                        onClick = onOpenQr,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AccentCyan.copy(alpha = 0.15f),
+                            contentColor = AccentCyan
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Filled.QrCode, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("QR / Clave", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -1097,5 +1141,139 @@ private fun BottomNavItem(
             color = if (isSelected) AccentCyan else ContentTertiary,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+// -------------------------------------------------------------
+// HOW IT WORKS GUIDE CARD
+// -------------------------------------------------------------
+@Composable
+private fun HowItWorksGuideCard(onOpenMap: () -> Unit) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1218)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(GlowCyan),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.TipsAndUpdates, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "¿Cómo funciona el cambio automático?",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ContentPrimary
+                        )
+                        Text(
+                            text = if (isExpanded) "Toca para plegar" else "Aprende a configurar nombres, redes y cercos",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ContentTertiary
+                        )
+                    }
+                }
+
+                Icon(
+                    if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    tint = ContentSecondary
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier.padding(top = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Divider(color = SurfaceBorder, thickness = 1.dp)
+
+                    // Step 1
+                    Row(verticalAlignment = Alignment.Top) {
+                        Surface(
+                            shape = CircleShape,
+                            color = AccentCyan.copy(alpha = 0.2f),
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("1", color = AccentCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Cambiar Nombres y Categorías", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = ContentPrimary)
+                            Text("Toca cualquier tarjeta o el botón 'Editar' para cambiar el nombre ('Casa', 'Trabajo', 'Casa Juan') y su icono.", style = MaterialTheme.typography.bodySmall, color = ContentSecondary)
+                        }
+                    }
+
+                    // Step 2
+                    Row(verticalAlignment = Alignment.Top) {
+                        Surface(
+                            shape = CircleShape,
+                            color = AccentCyan.copy(alpha = 0.2f),
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("2", color = AccentCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Vincular Redes Wi-Fi (SSIDs)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = ContentPrimary)
+                            Text("Asocia el nombre del Wi-Fi de ese lugar (o escanea las redes cercanas). Puedes guardar la contraseña para compartirla por código QR.", style = MaterialTheme.typography.bodySmall, color = ContentSecondary)
+                        }
+                    }
+
+                    // Step 3
+                    Row(verticalAlignment = Alignment.Top) {
+                        Surface(
+                            shape = CircleShape,
+                            color = AccentCyan.copy(alpha = 0.2f),
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("3", color = AccentCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Cercos Geográficos en el Mapa Radar", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = ContentPrimary)
+                            Text("Ajusta el radio (50m a 500m). Al entrar al cerco o al Wi-Fi, la app apaga tus datos móviles (0 megas gastados). Al salir, los enciende automáticamente tras 20 segundos.", style = MaterialTheme.typography.bodySmall, color = ContentSecondary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    OutlinedButton(
+                        onClick = onOpenMap,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Map, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Ver Zonas en el Radar de Mapas", color = AccentCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
     }
 }

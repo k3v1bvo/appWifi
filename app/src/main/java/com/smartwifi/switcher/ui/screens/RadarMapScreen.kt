@@ -59,7 +59,8 @@ fun RadarMapScreen(
     activeSsid: String?,
     onNavigateBack: () -> Unit,
     onSaveZone: (GeoZone) -> Unit,
-    onDeleteZone: (GeoZone) -> Unit
+    onDeleteZone: (GeoZone) -> Unit,
+    onUpdateZone: (GeoZone) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -75,9 +76,29 @@ fun RadarMapScreen(
     var newRadiusMeters by remember { mutableFloatStateOf(120f) }
     var newSsidInput by remember { mutableStateOf(activeSsid ?: "") }
 
-    // Selected zone inspector
+    // Selected zone inspector & editing
     var selectedZoneForInspect by remember { mutableStateOf<GeoZone?>(null) }
+    var editingZoneFromMap by remember { mutableStateOf<GeoZone?>(null) }
     var showQrZone by remember { mutableStateOf<GeoZone?>(null) }
+
+    if (editingZoneFromMap != null) {
+        EditZoneDialog(
+            zone = editingZoneFromMap!!,
+            onDismiss = { editingZoneFromMap = null },
+            onSave = { updated ->
+                onUpdateZone(updated)
+                editingZoneFromMap = null
+                selectedZoneForInspect = null
+                mapViewRef?.let { renderAllZones(it) }
+            },
+            onDelete = { toDelete ->
+                onDeleteZone(toDelete)
+                editingZoneFromMap = null
+                selectedZoneForInspect = null
+                mapViewRef?.let { renderAllZones(it) }
+            }
+        )
+    }
 
     if (showQrZone != null) {
         val z = showQrZone!!
@@ -302,6 +323,29 @@ fun RadarMapScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             )
 
+            // Helper Floating Tip
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 74.dp, start = 16.dp, end = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xDD0D1117),
+                border = BorderStroke(1.dp, SurfaceBorderLight)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.TouchApp, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isCreatingZone) "Toca el mapa para mover el cerco • Ajusta metros abajo" else "Toca un cerco para editarlo o pulsa '+' para uno nuevo",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ContentSecondary
+                    )
+                }
+            }
+
             // 3. FLOATING RIGHT UTILITY DOCK (Location, Zoom In, Zoom Out)
             Column(
                 modifier = Modifier
@@ -392,6 +436,9 @@ fun RadarMapScreen(
                         zone = inspectedZone,
                         isCurrent = activeSsid != null && inspectedZone.matchesSsid(activeSsid),
                         onDismiss = { selectedZoneForInspect = null },
+                        onEdit = {
+                            editingZoneFromMap = inspectedZone
+                        },
                         onDelete = {
                             onDeleteZone(inspectedZone)
                             selectedZoneForInspect = null
@@ -804,6 +851,7 @@ private fun ZoneInspectorCard(
     zone: GeoZone,
     isCurrent: Boolean,
     onDismiss: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     onOpenQr: () -> Unit
 ) {
@@ -890,24 +938,40 @@ private fun ZoneInspectorCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Actions row: QR / Clave & Delete
+            // Actions row: Edit / QR & Delete
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalButton(
-                    onClick = onOpenQr,
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = AccentCyan.copy(alpha = 0.15f),
-                        contentColor = AccentCyan
-                    ),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Filled.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ver QR / Clave", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color(0xFF1E2432),
+                            contentColor = AccentCyan
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Editar Cerco", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+
+                    FilledTonalButton(
+                        onClick = onOpenQr,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AccentCyan.copy(alpha = 0.15f),
+                            contentColor = AccentCyan
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Filled.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("QR", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 TextButton(
@@ -916,7 +980,7 @@ private fun ZoneInspectorCard(
                 ) {
                     Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Eliminar zona", style = MaterialTheme.typography.labelMedium)
+                    Text("Eliminar", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

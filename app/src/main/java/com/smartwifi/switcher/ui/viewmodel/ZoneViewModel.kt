@@ -90,6 +90,28 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateZone(zone: GeoZone, onComplete: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            zoneDao.updateZone(zone)
+            geofenceHelper.addOrUpdateGeofence(zone) { success, error ->
+                if (success) {
+                    val context = getApplication<Application>()
+                    VibratorHelper.vibrateArrival(context)
+                    viewModelScope.launch {
+                        logDao.insertLog(
+                            ActivityLog(
+                                title = "✏️ Zona editada: ${zone.name}",
+                                description = "Redes: ${zone.linkedWifiSsids ?: "GPS"} • Radio: ${zone.radiusMeters.toInt()}m",
+                                type = "CONFIG"
+                            )
+                        )
+                    }
+                }
+                onComplete(success, error)
+            }
+        }
+    }
+
     fun quickAddZone(
         name: String,
         ssid: String?,
