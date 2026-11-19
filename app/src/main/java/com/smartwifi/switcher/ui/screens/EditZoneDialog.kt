@@ -110,7 +110,7 @@ fun EditZoneDialog(
                                 .background(GlowCyan),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.EditLocation, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.Edit, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(20.dp))
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -228,13 +228,13 @@ fun EditZoneDialog(
                                 TextButton(
                                     onClick = {
                                         isScanningWifi = true
-                                        val scan = WifiKeychainHelper.scanNearbyWifi(context)
+                                        val scan = WifiKeychainHelper.getNearbyWifiNetworks(context)
                                         nearbyNetworks = scan
                                         isScanningWifi = false
                                     },
                                     contentPadding = PaddingValues(0.dp)
                                 ) {
-                                    Icon(Icons.Filled.WifiFind, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Outlined.Search, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Escanear Wi-Fi", style = MaterialTheme.typography.labelSmall, color = AccentCyan)
                                 }
@@ -259,7 +259,7 @@ fun EditZoneDialog(
                                                 ssidInput = "$ssidInput, $current"
                                             }
                                         }) {
-                                            Icon(Icons.Filled.Sync, contentDescription = "Copiar actual", tint = AccentEmerald)
+                                            Icon(Icons.Filled.Refresh, contentDescription = "Copiar actual", tint = AccentEmerald)
                                         }
                                     }
                                 },
@@ -306,7 +306,7 @@ fun EditZoneDialog(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(net.ssid, style = MaterialTheme.typography.labelMedium, color = ContentPrimary, fontFamily = FontFamily.Monospace)
-                                                Text("${net.signalStrengthPercent}% señal", style = MaterialTheme.typography.labelSmall, color = ContentSecondary)
+                                                Text("${net.level} dBm", style = MaterialTheme.typography.labelSmall, color = ContentSecondary)
                                             }
                                         }
                                     }

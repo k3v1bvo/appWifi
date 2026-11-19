@@ -1174,7 +1174,7 @@ private fun HowItWorksGuideCard(onOpenMap: () -> Unit) {
                             .background(GlowCyan),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.TipsAndUpdates, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Info, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(18.dp))
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {

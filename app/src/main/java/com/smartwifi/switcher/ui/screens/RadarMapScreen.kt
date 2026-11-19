@@ -336,7 +336,7 @@ fun RadarMapScreen(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.TouchApp, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.Place, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (isCreatingZone) "Toca el mapa para mover el cerco • Ajusta metros abajo" else "Toca un cerco para editarlo o pulsa '+' para uno nuevo",
