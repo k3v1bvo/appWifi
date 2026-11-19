@@ -43,12 +43,24 @@ object ShizukuManager {
     fun executeShell(command: String): Boolean {
         if (!hasPermission()) return false
         return try {
-            val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
             val exitCode = process.waitFor()
             exitCode == 0
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            try {
+                val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                proc.waitFor() == 0
+            } catch (_: Exception) {
+                false
+            }
         }
     }
 }
