@@ -3,7 +3,6 @@ package com.smartwifi.switcher
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Context
 import android.os.Build
 import org.osmdroid.config.Configuration
 import java.io.File
@@ -25,22 +24,27 @@ class SmartWifiApp : Application() {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // IMPORTANCE_MIN: Zero invasion. No status bar icon, completely silent, minimized at the bottom.
             val serviceChannel = NotificationChannel(
                 CHANNEL_SERVICE,
-                "Servicio de Monitoreo",
-                NotificationManager.IMPORTANCE_LOW
+                "Servicio en Segundo Plano (Silencioso)",
+                NotificationManager.IMPORTANCE_MIN
             ).apply {
-                description = "Mantiene activo el monitoreo de zonas para no cerrar la app en Xiaomi"
+                description = "Mantiene el servicio activo en segundo plano sin sonidos ni alertas molestas"
                 setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
             }
 
             val alertsChannel = NotificationChannel(
                 CHANNEL_ALERTS,
-                "Alertas de Conexión",
-                NotificationManager.IMPORTANCE_HIGH
+                "Registro de Eventos (Silencioso)",
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Notificaciones cuando cambias de zona y se alternan datos/Wi-Fi"
-                enableVibration(true)
+                description = "Notificaciones no invasivas sin sonido"
+                setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
             }
 
             val manager = getSystemService(NotificationManager::class.java)

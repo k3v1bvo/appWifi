@@ -26,7 +26,6 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: ZoneViewModel by viewModels()
 
-    // Shizuku permission listener
     private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (requestCode == ShizukuManager.SHIZUKU_PERMISSION_REQUEST_CODE) {
             val granted = grantResult == PackageManager.PERMISSION_GRANTED
@@ -47,7 +46,6 @@ class MainActivity : ComponentActivity() {
         viewModel.refreshShizukuStatus()
     }
 
-    // Permission launchers
     private val requestNotificationAndForegroundLocationLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -82,6 +80,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val zones by viewModel.allZones.collectAsState()
+                    val recentLogs by viewModel.recentLogs.collectAsState()
                     val isServiceActive by viewModel.isServiceActive.collectAsState()
                     val isShizukuActive by viewModel.isShizukuActive.collectAsState()
 
@@ -91,6 +90,7 @@ class MainActivity : ComponentActivity() {
                         "home" -> {
                             HomeScreen(
                                 zones = zones,
+                                recentLogs = recentLogs,
                                 isServiceActive = isServiceActive,
                                 isShizukuActive = isShizukuActive,
                                 onToggleService = { viewModel.toggleService(it) },
@@ -103,7 +103,10 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         Toast.makeText(this, "Instala y abre Shizuku con Depuración Inalámbrica primero.", Toast.LENGTH_LONG).show()
                                     }
-                                }
+                                },
+                                onClearLogs = { viewModel.clearLogs() },
+                                onTestData = { viewModel.testData(it) },
+                                onTestWifi = { viewModel.testWifi(it) }
                             )
                         }
                         "map_picker" -> {
@@ -115,7 +118,7 @@ class MainActivity : ComponentActivity() {
                                             Toast.makeText(this, "Zona '${newZone.name}' guardada y activada", Toast.LENGTH_SHORT).show()
                                             currentScreen = "home"
                                         } else {
-                                            Toast.makeText(this, "Error al activar geocerca: $error", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(this, "Error al activar: $error", Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }

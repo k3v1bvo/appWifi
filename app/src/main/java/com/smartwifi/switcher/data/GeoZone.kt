@@ -17,6 +17,20 @@ data class GeoZone(
     val wifiOffAtExit: Boolean = true,
     val dataOnAtExit: Boolean = true,
     val lastTriggeredAt: Long = 0L,
-    val linkedWifiSsid: String? = null, // Red Wi-Fi vinculada (ej. Wi-Fi de casa)
-    val batteryMode: String = "HYBRID"   // HYBRID (Zero Batería), GEOFENCE_ONLY, WIFI_ONLY
-)
+    val linkedWifiSsids: String? = null, // Redes Wi-Fi separadas por comas (ej. "MiCasa,MiCasa_5G")
+    val batteryMode: String = "HYBRID",   // HYBRID (Zero Batería), GEOFENCE_ONLY, WIFI_ONLY
+    val disconnectBufferSeconds: Int = 20, // Buffer anti-pestañeo (15s a 30s)
+    val vibrateOnAction: Boolean = true   // Vibración sutil sin sonido ni invasión
+) {
+    // Helper to get list of configured SSIDs
+    fun getSsidList(): List<String> {
+        return linkedWifiSsids?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+    }
+
+    // Helper to check if a connected SSID matches any of the zone's networks
+    fun matchesSsid(ssid: String?): Boolean {
+        if (ssid.isNullOrBlank()) return false
+        val cleanSsid = ssid.trim('\"')
+        return getSsidList().any { it.equals(cleanSsid, ignoreCase = true) }
+    }
+}

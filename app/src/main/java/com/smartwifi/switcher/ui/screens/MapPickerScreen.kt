@@ -40,7 +40,7 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MapPickerScreen(
     onNavigateBack: () -> Unit,
@@ -53,8 +53,14 @@ fun MapPickerScreen(
     var selectedLocation by remember { mutableStateOf(GeoPoint(-17.3935, -66.1570)) }
     var radiusMeters by remember { mutableFloatStateOf(150f) }
 
-    var linkedSsid by remember { mutableStateOf<String?>(WifiHelper.getCurrentSsid(context)) }
+    // Multi-SSID List
+    val initialSsid = WifiHelper.getCurrentSsid(context)
+    var ssidList by remember { mutableStateOf(initialSsid?.let { listOf(it) } ?: emptyList()) }
+    var manualSsidInput by remember { mutableStateOf("") }
+
     var selectedBatteryMode by remember { mutableStateOf("HYBRID") } // HYBRID, WIFI_ONLY, GEOFENCE_ONLY
+    var bufferSeconds by remember { mutableFloatStateOf(20f) } // Grace period
+    var vibrateOnAction by remember { mutableStateOf(true) }
 
     var wifiOnEntry by remember { mutableStateOf(true) }
     var dataOffEntry by remember { mutableStateOf(true) }
@@ -65,7 +71,6 @@ fun MapPickerScreen(
     var circleOverlay by remember { mutableStateOf<Polygon?>(null) }
     var centerMarker by remember { mutableStateOf<Marker?>(null) }
 
-    // Fetch GPS location on first open
     LaunchedEffect(Unit) {
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
@@ -79,7 +84,6 @@ fun MapPickerScreen(
         } catch (_: SecurityException) {}
     }
 
-    // Update Circle & Marker whenever selectedLocation or radius changes
     fun updateMapOverlays(mapView: MapView) {
         circleOverlay?.let { mapView.overlays.remove(it) }
         centerMarker?.let { mapView.overlays.remove(it) }
@@ -157,8 +161,10 @@ fun MapPickerScreen(
                             dataOffAtEntry = dataOffEntry,
                             wifiOffAtExit = wifiOffExit,
                             dataOnAtExit = dataOnExit,
-                            linkedWifiSsid = linkedSsid,
-                            batteryMode = selectedBatteryMode
+                            linkedWifiSsids = if (ssidList.isNotEmpty()) ssidList.joinToString(",") else null,
+                            batteryMode = selectedBatteryMode,
+                            disconnectBufferSeconds = bufferSeconds.roundToInt(),
+                            vibrateOnAction = vibrateOnAction
                         )
                         onSaveZone(newZone)
                     },
@@ -182,7 +188,6 @@ fun MapPickerScreen(
                 .background(DarkBackground)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Map View (only needed if not in pure WIFI_ONLY mode)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -235,7 +240,6 @@ fun MapPickerScreen(
                 }
             }
 
-            // Settings card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -255,7 +259,7 @@ fun MapPickerScreen(
                         value = zoneName,
                         onValueChange = { zoneName = it },
                         label = { Text("Nombre de la Zona") },
-                        placeholder = { Text("Ej. Casa, Trabajo, Depa") },
+                        placeholder = { Text("Ej. Mi Casa") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight,
@@ -270,7 +274,7 @@ fun MapPickerScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // SMART BATTERY SAVER: Link to Home Wi-Fi
+                    // Multi-SSID Card (2.4G + 5G + Repeaters)
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = DarkBackground),
@@ -281,7 +285,7 @@ fun MapPickerScreen(
                                 Icon(Icons.Default.Wifi, contentDescription = null, tint = PrimaryCyan)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Vincular a tu Red Wi-Fi de Casa",
+                                    text = "Redes Wi-Fi de Casa (Multi-Red)",
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     color = TextLight
@@ -289,38 +293,68 @@ fun MapPickerScreen(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "⚡ Al salir por la puerta, cuando se desconecta el Wi-Fi, la app prende tus megas AL INSTANTE con 0% de gasto de batería.",
+                                text = "Puedes agregar tu red de 2.4GHz, 5GHz y repetidores. Si te conectas a cualquiera de ellas, se apagarán los megas sin gastar batería.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = TextMuted
                             )
 
                             Spacer(modifier = Modifier.height(10.dp))
 
+                            // Chip List
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ssidList.forEach { ssid ->
+                                    InputChip(
+                                        selected = true,
+                                        onClick = {},
+                                        label = { Text(ssid, color = Color.White) },
+                                        trailingIcon = {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Quitar",
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable {
+                                                        ssidList = ssidList.filter { it != ssid }
+                                                    }
+                                            )
+                                        },
+                                        colors = InputChipDefaults.inputChipColors(selectedContainerColor = PrimaryBlue)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = linkedSsid?.let { "📶 $it" } ?: "Sin red Wi-Fi vinculada",
-                                    color = if (linkedSsid != null) AccentGreen else AccentOrange,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                OutlinedButton(
+                                Button(
                                     onClick = {
                                         val detected = WifiHelper.getCurrentSsid(context)
                                         if (detected != null) {
-                                            linkedSsid = detected
-                                            Toast.makeText(context, "Vinculado a: $detected", Toast.LENGTH_SHORT).show()
+                                            if (!ssidList.contains(detected)) {
+                                                ssidList = ssidList + detected
+                                                Toast.makeText(context, "Agregado: $detected", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Ya está en la lista", Toast.LENGTH_SHORT).show()
+                                            }
                                         } else {
-                                            Toast.makeText(context, "Conéctate a tu Wi-Fi para detectarlo", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, "Conéctate a tu Wi-Fi para agregarlo", Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCyan),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
-                                    Text("Detectar Red")
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Agregar Wi-Fi Actual", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
@@ -328,9 +362,46 @@ fun MapPickerScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Buffer anti-pestañeo
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = DarkBackground),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Buffer Anti-Pestañeo:", color = TextLight, fontWeight = FontWeight.SemiBold)
+                                Text("${bufferSeconds.roundToInt()} segundos", color = PrimaryCyan, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Si el router se reinicia o estás en una esquina con poca señal, la app esperará este tiempo antes de prender los datos por error.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextMuted
+                            )
+                            Slider(
+                                value = bufferSeconds,
+                                onValueChange = { bufferSeconds = it },
+                                valueRange = 10f..45f,
+                                steps = 6,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = PrimaryCyan,
+                                    activeTrackColor = PrimaryBlue,
+                                    inactiveTrackColor = SurfaceDark
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     // Battery Mode selector
                     Text(
-                        text = "Modo de Detección y Batería",
+                        text = "Modo de Detección",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TextLight
@@ -346,16 +417,9 @@ fun MapPickerScreen(
 
                     BatteryModeOption(
                         title = "Solo Wi-Fi (Zero GPS)",
-                        subtitle = "No usa GPS en lo absoluto. Detecta únicamente la red de casa. Consumo 0%.",
+                        subtitle = "No usa GPS en lo absoluto. Detecta únicamente tus redes de casa. Consumo 0%.",
                         isSelected = selectedBatteryMode == "WIFI_ONLY",
                         onClick = { selectedBatteryMode = "WIFI_ONLY" }
-                    )
-
-                    BatteryModeOption(
-                        title = "Solo Ubicación GPS",
-                        subtitle = "Basado únicamente en radio geográfico.",
-                        isSelected = selectedBatteryMode == "GEOFENCE_ONLY",
-                        onClick = { selectedBatteryMode = "GEOFENCE_ONLY" }
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -393,7 +457,7 @@ fun MapPickerScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Acciones Automáticas",
+                        text = "Acciones Automáticas y Sensaciones",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextLight
                     )
@@ -421,6 +485,12 @@ fun MapPickerScreen(
                         title = "Al salir: Prender Datos Móviles",
                         checked = dataOnExit,
                         onCheckedChange = { dataOnExit = it }
+                    )
+
+                    SwitchOption(
+                        title = "Vibración táctil sutil (Doble toque al llegar)",
+                        checked = vibrateOnAction,
+                        onCheckedChange = { vibrateOnAction = it }
                     )
                 }
             }

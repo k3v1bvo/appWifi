@@ -18,6 +18,7 @@ import androidx.core.app.NotificationCompat
 import com.smartwifi.switcher.MainActivity
 import com.smartwifi.switcher.R
 import com.smartwifi.switcher.SmartWifiApp
+import com.smartwifi.switcher.data.ActivityLog
 import com.smartwifi.switcher.data.AppDatabase
 import kotlinx.coroutines.*
 
@@ -28,6 +29,7 @@ class SmartKeepAliveService : Service() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     private var currentConnectedSsid: String? = null
+    private var pendingDisconnectJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -44,7 +46,7 @@ class SmartKeepAliveService : Service() {
             return START_NOT_STICKY
         }
 
-        val notification = createNotification("Smart Wifi Switch Activo", "Modo inteligente activo (Consumo mínimo de batería)")
+        val notification = createSilentNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIFICATION_ID,
@@ -67,9 +69,17 @@ class SmartKeepAliveService : Service() {
 
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                // Short delay to let Android obtain WifiInfo
+                // If there was a pending disconnect buffer running, CANCEL IT!
+                // This means the router blinked or signal dropped momentarily inside the house!
+                if (pendingDisconnectJob?.isActive == true) {
+                    pendingDisconnectJob?.cancel()
+                    pendingDisconnectJob = null
+                    Log.d(TAG, "⚡ Pestañeo de Wi-Fi evitado: la señal volvió antes de que se encendieran los megas.")
+                    logEvent("🛡️ Pestañeo de Wi-Fi evitado", "La conexión volvió a tiempo. No se consumieron megas por error.", "WIFI_RESTORED")
+                }
+
                 serviceScope.launch {
-                    delay(1200)
+                    delay(1200) // Allow Android to associate WifiInfo
                     val ssid = WifiHelper.getCurrentSsid(this@SmartKeepAliveService)
                     currentConnectedSsid = ssid
                     Log.d(TAG, "Wi-Fi conectado a: $ssid")
@@ -81,12 +91,12 @@ class SmartKeepAliveService : Service() {
             }
 
             override fun onLost(network: Network) {
-                val previousSsid = currentConnectedSsid
+                val lostSsid = currentConnectedSsid
                 currentConnectedSsid = null
-                Log.d(TAG, "Wi-Fi desconectado (estaba en: $previousSsid)")
+                Log.d(TAG, "Wi-Fi desconectado (estaba en: $lostSsid)")
 
-                if (previousSsid != null) {
-                    handleWifiDisconnected(previousSsid)
+                if (lostSsid != null) {
+                    handleWifiDisconnectedWithBuffer(lostSsid)
                 }
             }
         }
@@ -102,9 +112,9 @@ class SmartKeepAliveService : Service() {
         val db = AppDatabase.getDatabase(this)
         val activeZones = db.geoZoneDao().getActiveZones()
 
-        // Match by linked Wi-Fi SSID
+        // Multi-SSID matching (supports 2.4G, 5G, or repeaters)
         val matchedZone = activeZones.find { zone ->
-            zone.linkedWifiSsid?.equals(ssid, ignoreCase = true) == true
+            zone.matchesSsid(ssid)
         }
 
         if (matchedZone != null && matchedZone.isEnabled) {
@@ -112,34 +122,56 @@ class SmartKeepAliveService : Service() {
             if (matchedZone.dataOffAtEntry) {
                 ConnectionController.setMobileDataState(this, false)
             }
-            updateNotification(
-                "En ${matchedZone.name} ($ssid)",
-                "✅ Wi-Fi Conectado • Megas apagados (0% consumo de batería)"
-            )
-        }
-    }
-
-    private suspend fun handleWifiDisconnected(previousSsid: String) {
-        val db = AppDatabase.getDatabase(this)
-        val activeZones = db.geoZoneDao().getActiveZones()
-
-        val matchedZone = activeZones.find { zone ->
-            zone.linkedWifiSsid?.equals(previousSsid, ignoreCase = true) == true
-        }
-
-        if (matchedZone != null && matchedZone.isEnabled) {
-            Log.d(TAG, "Saliste de la cobertura de ${matchedZone.name}: Encendiendo megas...")
-            if (matchedZone.dataOnAtExit) {
-                ConnectionController.setMobileDataState(this, true)
+            if (matchedZone.vibrateOnAction) {
+                VibratorHelper.vibrateArrival(this)
             }
-            updateNotification(
-                "Fuera de ${matchedZone.name}",
-                "📶 Wi-Fi desconectado • Megas encendidos para seguir conectado"
-            )
+            logEvent("📍 Llegaste a ${matchedZone.name}", "Conectado a $ssid • Megas apagados para ahorrar", "ARRIVED")
         }
     }
 
-    private fun createNotification(title: String, content: String): Notification {
+    // Grace Period: Anti-Flapping Buffer (Wait 15s-20s before turning on mobile data)
+    private fun handleWifiDisconnectedWithBuffer(lostSsid: String) {
+        pendingDisconnectJob?.cancel()
+        pendingDisconnectJob = serviceScope.launch {
+            val db = AppDatabase.getDatabase(this@SmartKeepAliveService)
+            val activeZones = db.geoZoneDao().getActiveZones()
+
+            val matchedZone = activeZones.find { zone ->
+                zone.matchesSsid(lostSsid)
+            } ?: return@launch
+
+            if (!matchedZone.isEnabled) return@launch
+
+            val bufferSeconds = matchedZone.disconnectBufferSeconds.coerceAtLeast(5)
+            Log.d(TAG, "Wi-Fi de casa perdido. Esperando buffer anti-pestañeo de $bufferSeconds segundos...")
+
+            delay(bufferSeconds * 1000L)
+
+            // If still disconnected after buffer: Confirm departure and enable mobile data
+            Log.d(TAG, "Buffer expirado. Salida confirmada de ${matchedZone.name}: Encendiendo megas...")
+            if (matchedZone.dataOnAtExit) {
+                ConnectionController.setMobileDataState(this@SmartKeepAliveService, true)
+            }
+            if (matchedZone.vibrateOnAction) {
+                VibratorHelper.vibrateDeparture(this@SmartKeepAliveService)
+            }
+            logEvent("🚶 Saliste de ${matchedZone.name}", "Wi-Fi desconectado • Megas encendidos para seguir con internet", "DEPARTED")
+        }
+    }
+
+    private fun logEvent(title: String, desc: String, type: String) {
+        serviceScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(this@SmartKeepAliveService)
+                db.activityLogDao().insertLog(ActivityLog(title = title, description = desc, type = type))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error saving log: ${e.message}")
+            }
+        }
+    }
+
+    // Completely Silent, Minimized Notification (No popups, no sound, no status bar invasion)
+    private fun createSilentNotification(): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java)
         val openAppPendingIntent = PendingIntent.getActivity(
             this,
@@ -150,22 +182,18 @@ class SmartKeepAliveService : Service() {
 
         return NotificationCompat.Builder(this, SmartWifiApp.CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentTitle("Smart Wifi Switch")
+            .setContentText("Ahorro inteligente activo en segundo plano")
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setShowWhen(false)
             .setOngoing(true)
             .setContentIntent(openAppPendingIntent)
             .build()
     }
 
-    private fun updateNotification(title: String, content: String) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        manager?.notify(NOTIFICATION_ID, createNotification(title, content))
-    }
-
     override fun onDestroy() {
         super.onDestroy()
+        pendingDisconnectJob?.cancel()
         serviceScope.cancel()
         networkCallback?.let {
             try {

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.smartwifi.switcher.data.ActivityLog
 import com.smartwifi.switcher.data.GeoZone
 import com.smartwifi.switcher.ui.theme.*
 import java.text.SimpleDateFormat
@@ -25,18 +26,40 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     zones: List<GeoZone>,
+    recentLogs: List<ActivityLog>,
     isServiceActive: Boolean,
     isShizukuActive: Boolean,
     onToggleService: (Boolean) -> Unit,
     onToggleZone: (GeoZone, Boolean) -> Unit,
     onDeleteZone: (GeoZone) -> Unit,
     onAddZoneClick: () -> Unit,
-    onRequestShizukuPermission: () -> Unit
+    onRequestShizukuPermission: () -> Unit,
+    onClearLogs: () -> Unit,
+    onTestData: (Boolean) -> Boolean,
+    onTestWifi: (Boolean) -> Boolean
 ) {
     var showXiaomiGuide by remember { mutableStateOf(false) }
+    var showTestBench by remember { mutableStateOf(false) }
+    var showLogsDialog by remember { mutableStateOf(false) }
 
     if (showXiaomiGuide) {
         XiaomiGuideDialog(onDismiss = { showXiaomiGuide = false })
+    }
+
+    if (showTestBench) {
+        TestBenchDialog(
+            onDismiss = { showTestBench = false },
+            onTestData = onTestData,
+            onTestWifi = onTestWifi
+        )
+    }
+
+    if (showLogsDialog) {
+        ActivityLogDialog(
+            logs = recentLogs,
+            onDismiss = { showLogsDialog = false },
+            onClearLogs = onClearLogs
+        )
     }
 
     Scaffold(
@@ -58,11 +81,25 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showTestBench = true }) {
+                        Icon(
+                            Icons.Default.Science,
+                            contentDescription = "Probar Conexiones",
+                            tint = AccentGreen
+                        )
+                    }
+                    IconButton(onClick = { showLogsDialog = true }) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = "Historial",
+                            tint = PrimaryCyan
+                        )
+                    }
                     IconButton(onClick = { showXiaomiGuide = true }) {
                         Icon(
                             Icons.Default.HelpOutline,
                             contentDescription = "Guía Xiaomi",
-                            tint = PrimaryCyan
+                            tint = TextMuted
                         )
                     }
                 },
@@ -102,7 +139,8 @@ fun HomeScreen(
                     isShizukuActive = isShizukuActive,
                     onToggleService = onToggleService,
                     onRequestShizuku = onRequestShizukuPermission,
-                    onOpenGuide = { showXiaomiGuide = true }
+                    onOpenGuide = { showXiaomiGuide = true },
+                    onOpenTest = { showTestBench = true }
                 )
             }
 
@@ -176,13 +214,13 @@ private fun BatteryOptimizerBanner() {
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = "Ahorro Inteligente Activo",
+                    text = "Ahorro Inteligente Silencioso",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = TextLight
                 )
                 Text(
-                    text = "Consumo estimado: < 1% al día • Basado en red Wi-Fi y antenas sin GPS continuo.",
+                    text = "Consumo < 1% al día • Sin notificaciones invasivas ni alertas molestas.",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextMuted
                 )
@@ -197,7 +235,8 @@ private fun StatusCard(
     isShizukuActive: Boolean,
     onToggleService: (Boolean) -> Unit,
     onRequestShizuku: () -> Unit,
-    onOpenGuide: () -> Unit
+    onOpenGuide: () -> Unit,
+    onOpenTest: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -218,7 +257,7 @@ private fun StatusCard(
                         color = if (isServiceActive) AccentGreen else AccentRed
                     )
                     Text(
-                        text = if (isServiceActive) "Supervisando zonas y redes Wi-Fi sin gastar batería" else "El monitoreo automático está apagado",
+                        text = if (isServiceActive) "Supervisando Wi-Fi de forma silenciosa" else "El monitoreo automático está apagado",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextMuted
                     )
@@ -288,14 +327,30 @@ private fun StatusCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-            TextButton(
-                onClick = onOpenGuide,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = PrimaryCyan, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Ver guía para Redmi Note 11 (MIUI/HyperOS)", color = PrimaryCyan, style = MaterialTheme.typography.labelSmall)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onOpenTest,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGreen)
+                ) {
+                    Icon(Icons.Default.Science, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Probar Ahora")
+                }
+
+                OutlinedButton(
+                    onClick = onOpenGuide,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCyan)
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Guía Xiaomi")
+                }
             }
         }
     }
@@ -340,18 +395,16 @@ private fun ZoneItemCard(
                             )
                         }
 
-                        if (!zone.linkedWifiSsid.isNullOrBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = AccentGreen.copy(alpha = 0.2f)
-                            ) {
-                                Text(
-                                    text = "📶 ${zone.linkedWifiSsid}",
-                                    color = AccentGreen,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = AccentOrange.copy(alpha = 0.2f)
+                        ) {
+                            Text(
+                                text = "Buffer: ${zone.disconnectBufferSeconds}s",
+                                color = AccentOrange,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
                         }
                     }
                 }
@@ -370,6 +423,19 @@ private fun ZoneItemCard(
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Default.DeleteOutline, contentDescription = "Eliminar", tint = AccentRed)
                     }
+                }
+            }
+
+            if (zone.getSsidList().isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Wifi, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Redes: ${zone.getSsidList().joinToString(", ")}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AccentGreen
+                    )
                 }
             }
 
@@ -442,7 +508,7 @@ private fun EmptyZonesCard(onAddClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Agrega tu casa y vincula tu Wi-Fi para que la app apague los datos al llegar y los prenda al salir, sin gastar batería.",
+                text = "Agrega tu casa y vincula tus redes Wi-Fi (2.4G y 5G) para que la app apague los datos al llegar y los prenda al salir, de manera silenciosa y sin gastar batería.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextMuted,
                 modifier = Modifier.padding(horizontal = 8.dp)
