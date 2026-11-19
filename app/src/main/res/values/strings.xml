@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Smart Wifi Switch</string>
+    <string name="service_notification_title">Smart Wifi Switch Activo</string>
+    <string name="service_notification_desc">Monitoreando zonas para ahorrar megas y conectar Wi-Fi</string>
+    <string name="action_home_enter">Entraste a la zona: Wi-Fi Activado, Datos Apagados</string>
+    <string name="action_home_exit">Saliste de la zona: Wi-Fi Apagado, Datos Activados</string>
+</resources>
