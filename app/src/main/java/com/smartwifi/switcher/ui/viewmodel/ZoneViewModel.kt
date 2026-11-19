@@ -8,14 +8,18 @@ import com.smartwifi.switcher.data.AppDatabase
 import com.smartwifi.switcher.data.GeoZone
 import com.smartwifi.switcher.service.ConnectionController
 import com.smartwifi.switcher.service.GeofenceManagerHelper
+import com.smartwifi.switcher.service.NetworkSummary
 import com.smartwifi.switcher.service.ShizukuManager
 import com.smartwifi.switcher.service.SmartKeepAliveService
 import com.smartwifi.switcher.service.VibratorHelper
+import com.smartwifi.switcher.service.WifiHelper
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class ZoneViewModel(application: Application) : AndroidViewModel(application) {
@@ -37,13 +41,29 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
     private val _isServiceActive = MutableStateFlow(true)
     val isServiceActive: StateFlow<Boolean> = _isServiceActive.asStateFlow()
 
+    private val _networkSummary = MutableStateFlow(WifiHelper.getNetworkSummary(application))
+    val networkSummary: StateFlow<NetworkSummary> = _networkSummary.asStateFlow()
+
     init {
         refreshShizukuStatus()
+        refreshNetworkSummary()
         SmartKeepAliveService.start(application)
+
+        // Light background poller to update network status in UI (IP, SSID, Mobile Data) every 4 seconds
+        viewModelScope.launch {
+            while (isActive) {
+                delay(4000)
+                refreshNetworkSummary()
+            }
+        }
     }
 
     fun refreshShizukuStatus() {
         _isShizukuActive.value = ShizukuManager.hasPermission()
+    }
+
+    fun refreshNetworkSummary() {
+        _networkSummary.value = WifiHelper.getNetworkSummary(getApplication())
     }
 
     fun toggleService(active: Boolean) {
@@ -70,6 +90,47 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun quickAddZone(
+        name: String,
+        ssid: String?,
+        latitude: Double,
+        longitude: Double,
+        radiusMeters: Float = 120f,
+        onComplete: (Boolean, String?) -> Unit
+    ) {
+        val newZone = GeoZone(
+            name = name,
+            latitude = latitude,
+            longitude = longitude,
+            radiusMeters = radiusMeters,
+            isEnabled = true,
+            wifiOnAtEntry = true,
+            dataOffAtEntry = true,
+            wifiOffAtExit = true,
+            dataOnAtExit = true,
+            linkedWifiSsids = ssid?.takeIf { it.isNotBlank() },
+            batteryMode = "HYBRID",
+            disconnectBufferSeconds = 20,
+            vibrateOnAction = true
+        )
+        saveZone(newZone) { success, error ->
+            if (success) {
+                val context = getApplication<Application>()
+                VibratorHelper.vibrateArrival(context)
+                viewModelScope.launch {
+                    logDao.insertLog(
+                        ActivityLog(
+                            title = "➕ Zona creada: $name",
+                            description = "Red vinculada: ${ssid ?: "GPS puro"} • Protección de megas activada.",
+                            type = "CONFIG"
+                        )
+                    )
+                }
+            }
+            onComplete(success, error)
+        }
+    }
+
     fun toggleZoneEnabled(zone: GeoZone, isEnabled: Boolean) {
         viewModelScope.launch {
             val updated = zone.copy(isEnabled = isEnabled)
@@ -82,6 +143,13 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             zoneDao.deleteZone(zone)
             geofenceHelper.removeGeofence(zone.id)
+            logDao.insertLog(
+                ActivityLog(
+                    title = "🗑️ Zona eliminada: ${zone.name}",
+                    description = "Se desvinculó la red y el perímetro de detección.",
+                    type = "CONFIG"
+                )
+            )
         }
     }
 
@@ -105,6 +173,7 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
                         type = "TEST"
                     )
                 )
+                refreshNetworkSummary()
             }
         }
         return success
@@ -122,6 +191,8 @@ class ZoneViewModel(application: Application) : AndroidViewModel(application) {
                         type = "TEST"
                     )
                 )
+                delay(1200)
+                refreshNetworkSummary()
             }
         }
         return success

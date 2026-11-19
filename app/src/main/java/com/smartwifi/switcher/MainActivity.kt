@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                     val recentLogs by viewModel.recentLogs.collectAsState()
                     val isServiceActive by viewModel.isServiceActive.collectAsState()
                     val isShizukuActive by viewModel.isShizukuActive.collectAsState()
+                    val networkSummary by viewModel.networkSummary.collectAsState()
 
                     var currentScreen by remember { mutableStateOf("home") }
 
@@ -91,12 +92,22 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 zones = zones,
                                 recentLogs = recentLogs,
+                                networkSummary = networkSummary,
                                 isServiceActive = isServiceActive,
                                 isShizukuActive = isShizukuActive,
                                 onToggleService = { viewModel.toggleService(it) },
                                 onToggleZone = { zone, enabled -> viewModel.toggleZoneEnabled(zone, enabled) },
                                 onDeleteZone = { viewModel.deleteZone(it) },
-                                onAddZoneClick = { currentScreen = "map_picker" },
+                                onQuickAddZone = { name, ssid, lat, lng, radius ->
+                                    viewModel.quickAddZone(name, ssid, lat, lng, radius) { success, error ->
+                                        if (success) {
+                                            Toast.makeText(this, "Zona '$name' guardada y activada", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(this, "Error al activar: $error", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                },
+                                onOpenMapPicker = { currentScreen = "map_picker" },
                                 onRequestShizukuPermission = {
                                     if (ShizukuManager.isShizukuAvailable()) {
                                         ShizukuManager.requestPermission(shizukuPermissionListener)

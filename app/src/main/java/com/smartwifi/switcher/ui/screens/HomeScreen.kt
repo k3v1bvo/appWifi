@@ -1,5 +1,8 @@
 package com.smartwifi.switcher.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -24,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smartwifi.switcher.data.ActivityLog
 import com.smartwifi.switcher.data.GeoZone
+import com.smartwifi.switcher.service.NetworkSummary
 import com.smartwifi.switcher.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -35,12 +41,14 @@ import kotlin.math.roundToInt
 fun HomeScreen(
     zones: List<GeoZone>,
     recentLogs: List<ActivityLog>,
+    networkSummary: NetworkSummary,
     isServiceActive: Boolean,
     isShizukuActive: Boolean,
     onToggleService: (Boolean) -> Unit,
     onToggleZone: (GeoZone, Boolean) -> Unit,
     onDeleteZone: (GeoZone) -> Unit,
-    onAddZoneClick: () -> Unit,
+    onQuickAddZone: (name: String, ssid: String?, lat: Double, lng: Double, radius: Float) -> Unit,
+    onOpenMapPicker: () -> Unit,
     onRequestShizukuPermission: () -> Unit,
     onClearLogs: () -> Unit,
     onTestData: (Boolean) -> Boolean,
@@ -49,7 +57,10 @@ fun HomeScreen(
     var showXiaomiGuide by remember { mutableStateOf(false) }
     var showTestBench by remember { mutableStateOf(false) }
     var showLogsDialog by remember { mutableStateOf(false) }
+    var showQuickAddDialog by remember { mutableStateOf(false) }
+    var quickAddInitialPreset by remember { mutableStateOf("Casa") }
 
+    // Dialogs
     if (showXiaomiGuide) {
         XiaomiGuideDialog(onDismiss = { showXiaomiGuide = false })
     }
@@ -70,73 +81,67 @@ fun HomeScreen(
         )
     }
 
+    if (showQuickAddDialog) {
+        QuickAddZoneDialog(
+            initialPreset = quickAddInitialPreset,
+            onDismiss = { showQuickAddDialog = false },
+            onSave = { name, ssid, lat, lng, radius ->
+                onQuickAddZone(name, ssid, lat, lng, radius)
+                showQuickAddDialog = false
+            },
+            onOpenMapPicker = {
+                showQuickAddDialog = false
+                onOpenMapPicker()
+            }
+        )
+    }
+
+    // Active zone detection based on current SSID
+    val matchedZone = remember(networkSummary.currentSsid, zones) {
+        if (!networkSummary.currentSsid.isNullOrBlank()) {
+            zones.find { it.matchesSsid(networkSummary.currentSsid) }
+        } else {
+            null
+        }
+    }
+
+    val isUnregisteredSsid = remember(networkSummary.currentSsid, zones) {
+        val ssid = networkSummary.currentSsid
+        !ssid.isNullOrBlank() && zones.none { it.matchesSsid(ssid) }
+    }
+
     Scaffold(
         containerColor = AppBg,
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(GlowBlue),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.WifiProtectedSetup,
-                                contentDescription = null,
-                                tint = AccentBlueGlow,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Smart Wifi Switch",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = ContentPrimary
-                            )
-                            Text(
-                                text = "Control autónomo de datos",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = ContentTertiary
-                            )
-                        }
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Smart Wifi Switch",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ContentPrimary
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showXiaomiGuide = true }) {
                         Icon(
                             Icons.Outlined.HelpOutline,
-                            contentDescription = "Configuración Xiaomi",
+                            contentDescription = "Guía Xiaomi",
                             tint = ContentSecondary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppBg
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppBg)
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddZoneClick,
-                containerColor = AccentBlue,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Nueva zona", style = MaterialTheme.typography.labelLarge)
-                }
-            }
+        bottomBar = {
+            WolowBottomNav(
+                onOpenZones = { /* already in home */ },
+                onOpenDiagnostic = { showTestBench = true },
+                onOpenLogs = { showLogsDialog = true }
+            )
         }
     ) { padding ->
         LazyColumn(
@@ -146,54 +151,87 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 1. Central Hero Power Button (Wolow Aesthetic)
             item {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            // System State Hero
-            item {
-                SystemHeroCard(
-                    isServiceActive = isServiceActive,
+                WolowPowerRingHero(
+                    isActive = isServiceActive,
                     isShizukuActive = isShizukuActive,
-                    onToggleService = onToggleService,
-                    onRequestShizuku = onRequestShizukuPermission,
-                    onOpenTest = { showTestBench = true },
-                    onOpenLogs = { showLogsDialog = true },
-                    onOpenGuide = { showXiaomiGuide = true }
+                    onToggle = onToggleService,
+                    onRequestShizuku = onRequestShizukuPermission
                 )
             }
 
-            // Section Header
+            // 2. Selected Zone / Location Card (Wolow Selected Device Style)
+            item {
+                ActiveLocationCard(
+                    matchedZone = matchedZone,
+                    networkSummary = networkSummary,
+                    isUnregisteredSsid = isUnregisteredSsid,
+                    onQuickAddCurrentSsid = {
+                        quickAddInitialPreset = "Casa Juan"
+                        showQuickAddDialog = true
+                    }
+                )
+            }
+
+            // 3. Network Information Card (Wolow 4-quadrant layout with status badge)
+            item {
+                WolowNetworkInfoCard(
+                    summary = networkSummary,
+                    matchedZone = matchedZone
+                )
+            }
+
+            // 4. Quick Add Presets Bar ("Casa", "Trabajo", "Casa Juan", "Mapa")
+            item {
+                QuickPresetsBar(
+                    onSelectPreset = { preset ->
+                        quickAddInitialPreset = preset
+                        showQuickAddDialog = true
+                    },
+                    onOpenMap = onOpenMapPicker
+                )
+            }
+
+            // 5. Configured Zones Section Header
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 4.dp),
+                        .padding(top = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "ZONAS CONFIGURADAS",
                         style = MaterialTheme.typography.labelSmall,
-                        color = ContentTertiary
+                        color = ContentTertiary,
+                        letterSpacing = 1.sp
                     )
                     Text(
-                        text = "${zones.size} total",
+                        text = "${zones.size} guardadas",
                         style = MaterialTheme.typography.labelSmall,
                         color = ContentTertiary
                     )
                 }
             }
 
-            // Zone List or Empty State
+            // 6. Zone List
             if (zones.isEmpty()) {
                 item {
-                    EmptyStateCard(onAddClick = onAddZoneClick)
+                    WolowEmptyStateCard(
+                        onAddClick = {
+                            quickAddInitialPreset = "Casa"
+                            showQuickAddDialog = true
+                        }
+                    )
                 }
             } else {
                 items(zones, key = { it.id }) { zone ->
+                    val isCurrentlyHere = matchedZone?.id == zone.id
                     ZoneItemCard(
                         zone = zone,
+                        isCurrentlyHere = isCurrentlyHere,
                         onToggle = { isEnabled -> onToggleZone(zone, isEnabled) },
                         onDelete = { onDeleteZone(zone) }
                     )
@@ -201,84 +239,249 @@ fun HomeScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(88.dp))
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
 }
 
+// -------------------------------------------------------------
+// 1. WOLOW POWER RING HERO
+// -------------------------------------------------------------
 @Composable
-private fun SystemHeroCard(
-    isServiceActive: Boolean,
+private fun WolowPowerRingHero(
+    isActive: Boolean,
     isShizukuActive: Boolean,
-    onToggleService: (Boolean) -> Unit,
-    onRequestShizuku: () -> Unit,
-    onOpenTest: () -> Unit,
-    onOpenLogs: () -> Unit,
-    onOpenGuide: () -> Unit
+    onToggle: (Boolean) -> Unit,
+    onRequestShizuku: () -> Unit
+) {
+    val ringColor = if (isActive) AccentCyan else ContentTertiary
+    val glowColor = if (isActive) GlowCyan else Color.Transparent
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Glowing Concentric Ring Power Button
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF0D0E12))
+                .border(2.dp, Color(0xFF1E2028), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            // Outer subtle glow halo
+            Box(
+                modifier = Modifier
+                    .size(126.dp)
+                    .clip(CircleShape)
+                    .background(glowColor)
+                    .border(
+                        BorderStroke(
+                            2.5.dp,
+                            Brush.sweepGradient(
+                                listOf(
+                                    if (isActive) AccentCyan else ContentDisabled,
+                                    if (isActive) AccentBlue else ContentTertiary,
+                                    if (isActive) AccentCyan else ContentDisabled
+                                )
+                            )
+                        ),
+                        CircleShape
+                    )
+                    .clickable { onToggle(!isActive) },
+                contentAlignment = Alignment.Center
+            ) {
+                // Inner button surface
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF090A0D)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.PowerSettingsNew,
+                        contentDescription = "Encendido/Pausa",
+                        tint = if (isActive) AccentCyan else ContentTertiary,
+                        modifier = Modifier.size(54.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Status text below ring
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(if (isActive) AccentEmerald else AccentRose)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isActive) "ESCUDO DE MEGAS ACTIVO" else "PROTECCIÓN EN PAUSA",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isActive) AccentEmerald else AccentRose,
+                letterSpacing = 1.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = if (isActive) "Apagando megas al entrar a tus Wi-Fi conocidos" else "Toca el botón central para reanudar el ahorro automático",
+            style = MaterialTheme.typography.bodySmall,
+            color = ContentTertiary
+        )
+
+        // Shizuku warning banner if not active
+        if (!isShizukuActive) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                onClick = onRequestShizuku,
+                shape = RoundedCornerShape(10.dp),
+                color = AmberPillBg,
+                border = BorderStroke(1.dp, AmberPillBorder)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = AmberPillText, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Requiere vincular Shizuku para apagar datos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AmberPillText
+                    )
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// 2. ACTIVE LOCATION / DEVICE CARD (Wolow Selected Device Style)
+// -------------------------------------------------------------
+@Composable
+private fun ActiveLocationCard(
+    matchedZone: GeoZone?,
+    networkSummary: NetworkSummary,
+    isUnregisteredSsid: Boolean,
+    onQuickAddCurrentSsid: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(containerColor = SurfaceElevated),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            // Header Row: Status Pill & Master Switch
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (isServiceActive) AccentEmerald else AccentRose)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isServiceActive) "SISTEMA ACTIVO" else "SISTEMA EN PAUSA",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isServiceActive) AccentEmerald else AccentRose
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (matchedZone != null) GlowEmerald else SurfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (matchedZone != null) Icons.Outlined.LocationOn else Icons.Outlined.Sensors,
+                        contentDescription = null,
+                        tint = if (matchedZone != null) AccentEmerald else ContentSecondary,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Switch(
-                    checked = isServiceActive,
-                    onCheckedChange = onToggleService,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = AccentBlue,
-                        uncheckedThumbColor = ContentSecondary,
-                        uncheckedTrackColor = SurfaceCard,
-                        uncheckedBorderColor = SurfaceBorder
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column {
+                    Text(
+                        text = "UBICACIÓN DETECTADA",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ContentTertiary
                     )
-                )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = when {
+                            matchedZone != null -> "${matchedZone.name} (Protegido)"
+                            isUnregisteredSsid -> "Red nueva: ${networkSummary.currentSsid}"
+                            networkSummary.isWifiConnected -> "Wi-Fi no registrado"
+                            networkSummary.isMobileDataActive -> "En la calle (Datos móviles)"
+                            else -> "Sin conexión activa"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ContentPrimary
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            if (isUnregisteredSsid) {
+                FilledTonalButton(
+                    onClick = onQuickAddCurrentSsid,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = AccentCyan.copy(alpha = 0.15f),
+                        contentColor = AccentCyan
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("+ Guardar", style = MaterialTheme.typography.labelSmall)
+                }
+            } else if (matchedZone != null) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = GreenPillBg,
+                    border = BorderStroke(1.dp, GreenPillBorder)
+                ) {
+                    Text(
+                        text = "EN ZONA",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = GreenPillText,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
 
-            Text(
-                text = if (isServiceActive) "Protección de datos en ejecución" else "Monitoreo automático detenido",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = ContentPrimary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Alterna Wi-Fi y datos móviles por proximidad de red y geocercas en segundo plano sin drenaje de batería.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = ContentSecondary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = SurfaceBorder, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Sub-status Row: Shizuku / Engine Status
+// -------------------------------------------------------------
+// 3. WOLOW NETWORK INFORMATION CARD
+// -------------------------------------------------------------
+@Composable
+private fun WolowNetworkInfoCard(
+    summary: NetworkSummary,
+    matchedZone: GeoZone?
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            // Header Row: Network info label & Status Pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -286,73 +489,156 @@ private fun SystemHeroCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        if (isShizukuActive) Icons.Outlined.CheckCircle else Icons.Outlined.WarningAmber,
+                        Icons.Outlined.Hub,
                         contentDescription = null,
-                        tint = if (isShizukuActive) AccentEmerald else AccentAmber,
-                        modifier = Modifier.size(16.dp)
+                        tint = ContentSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = if (isShizukuActive) "Control de red automático" else "Requiere enlace Shizuku",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = ContentPrimary
-                        )
-                        Text(
-                            text = if (isShizukuActive) "Privilegios de sistema autorizados" else "Toca para conectar el servicio",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = ContentTertiary
-                        )
-                    }
+                    Text(
+                        text = "Network information",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ContentPrimary
+                    )
                 }
 
-                if (!isShizukuActive) {
-                    FilledTonalButton(
-                        onClick = onRequestShizuku,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = AccentAmber.copy(alpha = 0.15f),
-                            contentColor = AccentAmber
-                        )
+                // Green/Amber status pill (identical to Wolow "Domain resolves")
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (matchedZone != null || summary.isWifiConnected) GreenPillBg else AmberPillBg,
+                    border = BorderStroke(1.dp, if (matchedZone != null || summary.isWifiConnected) GreenPillBorder else AmberPillBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Vincular", style = MaterialTheme.typography.labelSmall)
+                        Icon(
+                            if (matchedZone != null || summary.isWifiConnected) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = if (matchedZone != null || summary.isWifiConnected) GreenPillText else AmberPillText,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = if (matchedZone != null) "Megas Protegidos" else if (summary.isWifiConnected) "Wi-Fi Conectado" else "Datos Móviles",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (matchedZone != null || summary.isWifiConnected) GreenPillText else AmberPillText
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Utility Toolbar: Diagnostic, Logs, System Settings
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ActionButton(
-                    icon = Icons.Outlined.Speed,
-                    label = "Diagnóstico",
-                    onClick = onOpenTest,
-                    modifier = Modifier.weight(1f)
-                )
-                ActionButton(
-                    icon = Icons.Outlined.FormatListBulleted,
-                    label = "Registro",
-                    onClick = onOpenLogs,
-                    modifier = Modifier.weight(1f)
-                )
-                ActionButton(
-                    icon = Icons.Outlined.SettingsSuggest,
-                    label = "Ajustes Xiaomi",
-                    onClick = onOpenGuide,
-                    modifier = Modifier.weight(1f)
-                )
+            // 2x2 Grid of Network Metrics (Wolow style: Source IP, Target address, Subnet, Status)
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Red Wi-Fi", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = summary.currentSsid ?: "Desconectado",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = ContentPrimary,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Datos Móviles", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (matchedZone != null || !summary.isMobileDataActive) "APAGADO (0 MB)" else "ENCENDIDO",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = if (matchedZone != null || !summary.isMobileDataActive) AccentEmerald else AccentAmber
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Source IP", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = summary.localIp,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = ContentPrimary,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Subnet mask", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = summary.subnetMask,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = ContentPrimary,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
     }
 }
 
+// -------------------------------------------------------------
+// 4. QUICK PRESETS BAR (Casa, Trabajo, Casa Juan, Mapa)
+// -------------------------------------------------------------
 @Composable
-private fun ActionButton(
+private fun QuickPresetsBar(
+    onSelectPreset: (String) -> Unit,
+    onOpenMap: () -> Unit
+) {
+    Column {
+        Text(
+            text = "AGREGAR ZONA RÁPIDA",
+            style = MaterialTheme.typography.labelSmall,
+            color = ContentTertiary,
+            letterSpacing = 1.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            QuickPresetButton(
+                icon = Icons.Outlined.Home,
+                label = "+ Casa",
+                onClick = { onSelectPreset("Casa") },
+                modifier = Modifier.weight(1f)
+            )
+            QuickPresetButton(
+                icon = Icons.Outlined.Work,
+                label = "+ Trabajo",
+                onClick = { onSelectPreset("Trabajo") },
+                modifier = Modifier.weight(1f)
+            )
+            QuickPresetButton(
+                icon = Icons.Outlined.Person,
+                label = "+ Juan",
+                onClick = { onSelectPreset("Casa Juan") },
+                modifier = Modifier.weight(1f)
+            )
+            QuickPresetButton(
+                icon = Icons.Outlined.Map,
+                label = "Mapa",
+                onClick = onOpenMap,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickPresetButton(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -360,74 +646,116 @@ private fun ActionButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.height(38.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = SurfaceCard,
-        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
+        shape = RoundedCornerShape(10.dp),
+        color = SurfaceElevated,
+        border = BorderStroke(1.dp, SurfaceBorder),
+        modifier = modifier.height(42.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = ContentSecondary, modifier = Modifier.size(15.dp))
+            Icon(icon, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(15.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, color = ContentPrimary)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = ContentPrimary
+            )
         }
     }
 }
 
+// -------------------------------------------------------------
+// 5. ZONE ITEM CARD
+// -------------------------------------------------------------
 @Composable
 private fun ZoneItemCard(
     zone: GeoZone,
+    isCurrentlyHere: Boolean,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
+    val zoneIcon = when {
+        zone.name.contains("casa", ignoreCase = true) && !zone.name.contains("juan", ignoreCase = true) -> Icons.Outlined.Home
+        zone.name.contains("trabajo", ignoreCase = true) || zone.name.contains("oficina", ignoreCase = true) -> Icons.Outlined.Work
+        zone.name.contains("juan", ignoreCase = true) || zone.name.contains("amigo", ignoreCase = true) -> Icons.Outlined.Person
+        else -> Icons.Outlined.Place
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, SurfaceBorder, RoundedCornerShape(14.dp)),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-        shape = RoundedCornerShape(14.dp)
+            .border(
+                1.dp,
+                if (isCurrentlyHere) AccentEmerald.copy(alpha = 0.5f) else SurfaceBorder,
+                RoundedCornerShape(16.dp)
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCurrentlyHere) Color(0xFF101915) else SurfaceCard
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Zone Top Bar
+            // Zone Top Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(if (zone.isEnabled) AccentEmerald else ContentTertiary)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = zone.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (zone.isEnabled) ContentPrimary else ContentTertiary
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isCurrentlyHere) GlowEmerald else SurfaceElevated),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            zoneIcon,
+                            contentDescription = null,
+                            tint = if (isCurrentlyHere) AccentEmerald else AccentCyan,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    // Meta Tags Row
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        MetaTag(text = "${zone.radiusMeters.roundToInt()} m")
-                        MetaTag(text = "Buffer ${zone.disconnectBufferSeconds}s")
-                        if (zone.batteryMode == "WIFI_ONLY") {
-                            MetaTag(text = "Solo Wi-Fi")
-                        } else {
-                            MetaTag(text = "Híbrido")
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = zone.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (zone.isEnabled) ContentPrimary else ContentTertiary
+                            )
+                            if (isCurrentlyHere) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = GreenPillBg,
+                                    border = BorderStroke(1.dp, GreenPillBorder)
+                                ) {
+                                    Text(
+                                        text = "AQUÍ AHORA",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GreenPillText,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
+                        Text(
+                            text = "Radio ${zone.radiusMeters.roundToInt()}m • Buffer anti-pestañeo ${zone.disconnectBufferSeconds}s",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ContentTertiary
+                        )
                     }
                 }
 
@@ -437,24 +765,19 @@ private fun ZoneItemCard(
                         onCheckedChange = onToggle,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = AccentBlue,
+                            checkedTrackColor = AccentCyan,
                             uncheckedThumbColor = ContentSecondary,
                             uncheckedTrackColor = SurfaceElevated,
                             uncheckedBorderColor = SurfaceBorder
                         )
                     )
                     IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                        Icon(
-                            Icons.Outlined.Delete,
-                            contentDescription = "Eliminar zona",
-                            tint = ContentTertiary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Icon(Icons.Outlined.Delete, contentDescription = "Eliminar", tint = ContentTertiary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
 
-            // Linked Wi-Fi Networks
+            // Linked SSIDs
             val ssids = zone.getSsidList()
             if (ssids.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
@@ -462,12 +785,7 @@ private fun ZoneItemCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Outlined.Wifi,
-                        contentDescription = null,
-                        tint = AccentCyan,
-                        modifier = Modifier.size(14.dp)
-                    )
+                    Icon(Icons.Outlined.Wifi, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = ssids.joinToString(" • "),
@@ -478,7 +796,7 @@ private fun ZoneItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Divider(color = SurfaceBorder, thickness = 1.dp)
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -488,70 +806,30 @@ private fun ZoneItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(
-                        text = "AL INGRESAR",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ContentTertiary
-                    )
+                    Text("AL INGRESAR", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Wi-Fi On • Datos Off",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (zone.isEnabled) AccentEmerald else ContentTertiary
-                    )
+                    Text("Wi-Fi On • Megas Off", style = MaterialTheme.typography.labelMedium, color = AccentEmerald)
                 }
-
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "AL SALIR",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ContentTertiary
-                    )
+                    Text("AL SALIR", style = MaterialTheme.typography.labelSmall, color = ContentTertiary)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Wi-Fi Off • Datos On",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (zone.isEnabled) AccentCyan else ContentTertiary
-                    )
+                    Text("Wi-Fi Off • Megas On", style = MaterialTheme.typography.labelMedium, color = AccentCyan)
                 }
-            }
-
-            if (zone.lastTriggeredAt > 0L) {
-                Spacer(modifier = Modifier.height(8.dp))
-                val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(zone.lastTriggeredAt))
-                Text(
-                    text = "Última transición: $dateStr",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ContentTertiary
-                )
             }
         }
     }
 }
 
+// -------------------------------------------------------------
+// 6. EMPTY STATE CARD
+// -------------------------------------------------------------
 @Composable
-private fun MetaTag(text: String) {
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = SurfaceElevated,
-        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = ContentSecondary,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
-    }
-}
-
-@Composable
-private fun EmptyStateCard(onAddClick: () -> Unit) {
+private fun WolowEmptyStateCard(onAddClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(containerColor = SurfaceElevated),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
@@ -564,39 +842,110 @@ private fun EmptyStateCard(onAddClick: () -> Unit) {
                 modifier = Modifier
                     .size(54.dp)
                     .clip(CircleShape)
-                    .background(SurfaceCard),
+                    .background(SurfaceElevated),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Outlined.Sensors,
                     contentDescription = null,
-                    tint = ContentSecondary,
-                    modifier = Modifier.size(26.dp)
+                    tint = AccentCyan,
+                    modifier = Modifier.size(28.dp)
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Sin zonas configuradas",
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
                 color = ContentPrimary
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Define el perímetro de tu hogar y vincula tus redes Wi-Fi para iniciar la automatización sin intervención manual.",
+                text = "Agrega tu casa, trabajo o casa de Juan para que tus datos móviles se apaguen solos y nunca gastes megas por descuido.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = ContentSecondary,
-                modifier = Modifier.padding(horizontal = 12.dp)
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
             Button(
                 onClick = onAddClick,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                shape = RoundedCornerShape(8.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color.Black),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Icon(Icons.Filled.AddLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Definir primera zona", style = MaterialTheme.typography.labelLarge)
+                Text("Crear primera zona", fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+// -------------------------------------------------------------
+// 7. BOTTOM NAVIGATION (Wolow style: Menu / Shield / Guide)
+// -------------------------------------------------------------
+@Composable
+private fun WolowBottomNav(
+    onOpenZones: () -> Unit,
+    onOpenDiagnostic: () -> Unit,
+    onOpenLogs: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF090A0D),
+        border = BorderStroke(1.dp, Color(0xFF1A1C24))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BottomNavItem(
+                icon = Icons.Outlined.Menu,
+                label = "Diagnóstico",
+                onClick = onOpenDiagnostic
+            )
+            BottomNavItem(
+                icon = Icons.Filled.PowerSettingsNew,
+                label = "Escudo",
+                isSelected = true,
+                onClick = onOpenZones
+            )
+            BottomNavItem(
+                icon = Icons.Outlined.FormatListBulleted,
+                label = "Registro",
+                onClick = onOpenLogs
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    icon: ImageVector,
+    label: String,
+    isSelected: Boolean = false,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (isSelected) AccentCyan else ContentTertiary,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) AccentCyan else ContentTertiary,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
