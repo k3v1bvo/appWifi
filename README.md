@@ -36,11 +36,11 @@ En Android, dejar los **datos móviles encendidos** mientras estás en casa, en 
 * **Generador de Código QR Oficial:** Cualquier invitado o amigo apunta la cámara de su celular al código QR en pantalla y se conecta de inmediato sin escribir contraseñas.
 * **Escáner de Redes Cercanas (🔍):** Detecta las redes Wi-Fi al alcance con su barra de señal (📶) para vincularlas en un toque sin tener que escribir el nombre a mano.
 
-### 3. Radar Geográfico y Mapa de Alta Precisión (Sin Claves API)
-* **Cartografía CartoDB Dark Matter:** Mapa técnico oscuro sin marcas de agua, sin claves de Google Maps que expiren y sin cargos por facturación.
+### 3. Radar Geográfico y Mapa de Alta Precisión (Sin Marcas de Agua)
+* **Cartografía Oficial CARTO Basemaps Integrada:** Mapa técnico oscuro de alta resolución con API Key de k3v1bvoLabs autenticada (`CARTO_DARK` y `CARTO_VOYAGER`), 100% libre de marcas de agua diagonales y optimizado para pantallas OLED.
 * **Radar Multizona en Vivo:** Visualiza todas tus zonas ("Casa", "Trabajo", "Casa Juan", etc.) al mismo tiempo en el mapa con halos de neón.
 * **Detección Dinámica:** El perímetro en el que te encuentras pulsa en verde esmeralda con la etiqueta `📍 AQUÍ AHORA`.
-* **Editor Interactivo:** Ajusta el radio de detección de 50 a 500 metros con deslizador en vivo y controles flotantes (`🎯` Centrar GPS, zoom y selector de estilos).
+* **Editor Interactivo:** Ajusta el radio de detección de 50 a 500 metros con deslizador en vivo, chips de acceso rápido (50m, 100m, 180m, 350m) y controles flotantes (`🎯` Centrar GPS, zoom y selector de estilos).
 
 ### 4. Categorías de Ubicación Ilimitadas
 * 🏠 **Casa / Hogar**
@@ -67,7 +67,7 @@ El proyecto está configurado con integración continua (CI) en GitHub Actions, 
    * Entra a la pestaña **Actions** en tu repositorio de GitHub: `https://github.com/k3v1bvo/appWifi/actions`.
    * Abre la última ejecución en verde de **Build Android APK**.
    * En la sección **Artifacts** al pie de la página, descarga el paquete **`SmartWifiDataSaver-Debug-APK`**.
-   * Instálalo directamente en tu celular Android.
+   * **Instalación limpia (primera vez v1.1.0):** Al cambiar la firma a un certificado criptográfico persistente (`app/debug.keystore`) y el paquete a `com.k3v1bvo.smartwifi`, si tenías instalada una compilación de prueba anterior, desinstálala una sola vez para eliminar el conflicto de firmas de Android. A partir de esta versión, todas las futuras actualizaciones se instalarán encima sin errores.
 
 ---
 
