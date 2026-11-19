@@ -55,6 +55,7 @@ fun HomeScreen(
     onTestWifi: (Boolean) -> Boolean
 ) {
     var showXiaomiGuide by remember { mutableStateOf(false) }
+    var showLegalDialog by remember { mutableStateOf(false) }
     var showTestBench by remember { mutableStateOf(false) }
     var showLogsDialog by remember { mutableStateOf(false) }
     var showQuickAddDialog by remember { mutableStateOf(false) }
@@ -64,6 +65,10 @@ fun HomeScreen(
     // Dialogs
     if (showXiaomiGuide) {
         XiaomiGuideDialog(onDismiss = { showXiaomiGuide = false })
+    }
+
+    if (showLegalDialog) {
+        LegalNoticeDialog(onDismiss = { showLegalDialog = false })
     }
 
     if (showTestBench) {
@@ -138,6 +143,13 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showLegalDialog = true }) {
+                        Icon(
+                            Icons.Outlined.Gavel,
+                            contentDescription = "Avisos Legales",
+                            tint = ContentSecondary
+                        )
+                    }
                     IconButton(onClick = { showXiaomiGuide = true }) {
                         Icon(
                             Icons.Outlined.HelpOutline,

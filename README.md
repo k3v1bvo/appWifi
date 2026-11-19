@@ -143,8 +143,18 @@ app/src/main/java/com/smartwifi/switcher/
 
 ---
 
-## 📄 Licencia y Propiedad Intelectual
+## 📄 Licencia y Documentación Legal
 
 **Copyright (c) 2026 k3v1bvo. Todos los derechos reservados.**
 
 Este proyecto es software privado y propietario. Queda estrictamente prohibida la copia, reproducción, redistribución, modificación, venta, sublicenciamiento o uso no autorizado de este código fuente y sus binarios sin la autorización expresa por escrito de su autor (**k3v1bvo**).
+
+Para consultar los documentos de cumplimiento legal, privacidad y atribuciones:
+* 📜 [Licencia Propietaria (LICENSE)](LICENSE)
+* 🔒 [Política de Privacidad (PRIVACY.md)](PRIVACY.md)
+* ⚖️ [Términos de Uso y EULA (TERMS.md)](TERMS.md)
+* 🛡️ [Política de Seguridad y Vulnerabilidades (SECURITY.md)](SECURITY.md)
+* 📋 [Inventario de Datos y ROPA (DATA_INVENTORY.md)](DATA_INVENTORY.md)
+* 🌐 [Fuentes de Datos y APIs (DATA_SOURCES.md)](DATA_SOURCES.md)
+* 🤝 [Avisos de Terceros y Licencias Apache 2.0 (THIRD_PARTY_NOTICES.md)](THIRD_PARTY_NOTICES.md)
+* 🎨 [Atribuciones de Diseño y Cartografía (ATTRIBUTIONS.md)](ATTRIBUTIONS.md)
