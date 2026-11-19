@@ -429,7 +429,7 @@ fun EditZoneDialog(
                             ) {
                                 Column {
                                     Text(
-                                        text = "GPS: %.5f, %.5f".format(lat, lng),
+                                        text = String.format(java.util.Locale.US, "GPS: %.5f, %.5f", lat, lng),
                                         style = MaterialTheme.typography.bodySmall,
                                         fontFamily = FontFamily.Monospace,
                                         color = ContentSecondary
