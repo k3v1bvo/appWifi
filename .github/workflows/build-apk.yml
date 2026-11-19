@@ -47,11 +47,17 @@ jobs:
           path: build.log
           retention-days: 7
 
+      - name: Locate APK files
+        if: success()
+        run: |
+          echo "Found APK files:"
+          find app/build/outputs/ -name "*.apk"
+
       - name: Upload Debug APK Artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: SmartWifiDataSaver-Debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
