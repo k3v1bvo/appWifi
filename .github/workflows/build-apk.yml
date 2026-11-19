@@ -28,27 +28,31 @@ jobs:
           gradle-version: '8.6'
 
       - name: Build Debug APK
+        shell: bash
         run: |
-          gradle assembleDebug --stacktrace 2>&1 | tee build.log
+          set -eo pipefail
+          gradle :app:assembleDebug --stacktrace 2>&1 | tee build.log
 
-      - name: Output Failure Log to Summary
-        if: failure()
+      - name: Output Build Log to Summary
+        if: always()
+        shell: bash
         run: |
-          echo "### ❌ Build Failure Details" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Build Log (Last 120 lines)" >> $GITHUB_STEP_SUMMARY
           echo '```text' >> $GITHUB_STEP_SUMMARY
           tail -n 120 build.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload Failure Log Artifact
-        if: failure()
+      - name: Upload Full Build Log Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-failure-log
+          name: full-build-log
           path: build.log
           retention-days: 7
 
       - name: Collect Generated APK
         if: success()
+        shell: bash
         run: |
           mkdir -p apk_output
           find . -type f -name "*.apk" -exec cp -v {} apk_output/ \;
