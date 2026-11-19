@@ -20,7 +20,7 @@ object ShizukuManager {
     fun hasPermission(): Boolean {
         return if (isShizukuAvailable()) {
             try {
-                if (Shizuku.isPre_V11()) {
+                if (Shizuku.isPreV11()) {
                     false
                 } else {
                     Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
