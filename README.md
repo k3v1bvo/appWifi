@@ -4,7 +4,7 @@
 [![Build Android APK](https://github.com/k3v1bvo/appWifi/actions/workflows/build-apk.yml/badge.svg)](https://github.com/k3v1bvo/appWifi/actions/workflows/build-apk.yml)
 ![Platform](https://img.shields.io/badge/Plataforma-Android%2011%2B%20%7C%20MIUI%20%7C%20HyperOS-blue)
 ![Architecture](https://img.shields.io/badge/Arquitectura-Jetpack%20Compose%20%7C%20Room%20%7C%20Shizuku-emerald)
-![License](https://img.shields.io/badge/Licencia-MIT-purple)
+![License](https://img.shields.io/badge/Licencia-Privada%20%7C%20Derechos%20Reservados-red)
 
 ---
 
@@ -143,6 +143,8 @@ app/src/main/java/com/smartwifi/switcher/
 
 ---
 
-## 📄 Licencia
+## 📄 Licencia y Propiedad Intelectual
 
-Este proyecto está liberado bajo la licencia **MIT**. Puedes usarlo, modificarlo y distribuirlo libremente.
+**Copyright (c) 2026 k3v1bvo. Todos los derechos reservados.**
+
+Este proyecto es software privado y propietario. Queda estrictamente prohibida la copia, reproducción, redistribución, modificación, venta, sublicenciamiento o uso no autorizado de este código fuente y sus binarios sin la autorización expresa por escrito de su autor (**k3v1bvo**).
