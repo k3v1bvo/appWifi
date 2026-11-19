@@ -47,6 +47,8 @@ jobs:
         if: failure()
         shell: bash
         run: |
+          echo "==== COMPILATION ERRORS ===="
+          grep -E "e: |CompilationErrorException|Unresolved reference" build.log || true
           echo "==== GRADLE ERROR SNIPPET ===="
           tail -n 80 build.log
 

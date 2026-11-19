@@ -81,37 +81,6 @@ fun RadarMapScreen(
     var editingZoneFromMap by remember { mutableStateOf<GeoZone?>(null) }
     var showQrZone by remember { mutableStateOf<GeoZone?>(null) }
 
-    if (editingZoneFromMap != null) {
-        EditZoneDialog(
-            zone = editingZoneFromMap!!,
-            onDismiss = { editingZoneFromMap = null },
-            onSave = { updated ->
-                onUpdateZone(updated)
-                editingZoneFromMap = null
-                selectedZoneForInspect = null
-                mapViewRef?.let { renderAllZones(it) }
-            },
-            onDelete = { toDelete ->
-                onDeleteZone(toDelete)
-                editingZoneFromMap = null
-                selectedZoneForInspect = null
-                mapViewRef?.let { renderAllZones(it) }
-            }
-        )
-    }
-
-    if (showQrZone != null) {
-        val z = showQrZone!!
-        val ssid = z.getSsidList().firstOrNull() ?: z.linkedWifiSsids ?: z.name
-        WifiQrDialog(
-            placeName = z.name,
-            ssid = ssid,
-            password = z.wifiPassword,
-            notes = z.notes,
-            onDismiss = { showQrZone = null }
-        )
-    }
-
     // Overlays list references
     val zoneOverlays = remember { mutableListOf<Polygon>() }
     val zoneMarkers = remember { mutableListOf<Marker>() }
@@ -263,6 +232,37 @@ fun RadarMapScreen(
                 renderAllZones(map)
             }
         }
+    }
+
+    if (editingZoneFromMap != null) {
+        EditZoneDialog(
+            zone = editingZoneFromMap!!,
+            onDismiss = { editingZoneFromMap = null },
+            onSave = { updated ->
+                onUpdateZone(updated)
+                editingZoneFromMap = null
+                selectedZoneForInspect = null
+                mapViewRef?.let { renderAllZones(it) }
+            },
+            onDelete = { toDelete ->
+                onDeleteZone(toDelete)
+                editingZoneFromMap = null
+                selectedZoneForInspect = null
+                mapViewRef?.let { renderAllZones(it) }
+            }
+        )
+    }
+
+    if (showQrZone != null) {
+        val z = showQrZone!!
+        val ssid = z.getSsidList().firstOrNull() ?: z.linkedWifiSsids ?: z.name
+        WifiQrDialog(
+            placeName = z.name,
+            ssid = ssid,
+            password = z.wifiPassword,
+            notes = z.notes,
+            onDismiss = { showQrZone = null }
+        )
     }
 
     Scaffold(
