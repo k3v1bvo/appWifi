@@ -20,7 +20,7 @@ import com.smartwifi.switcher.ui.screens.HomeScreen
 import com.smartwifi.switcher.ui.screens.MapPickerScreen
 import com.smartwifi.switcher.ui.theme.SmartWifiSwitchTheme
 import com.smartwifi.switcher.ui.viewmodel.ZoneViewModel
-import dev.rikka.shizuku.Shizuku
+import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
 

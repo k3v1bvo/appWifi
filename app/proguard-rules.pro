@@ -1,4 +1,4 @@
 # Proguard rules for SmartWifiSwitch
 -keep class com.smartwifi.switcher.data.** { *; }
--keep class dev.rikka.shizuku.** { *; }
+-keep class rikka.shizuku.** { *; }
 -dontwarn org.osmdroid.**
