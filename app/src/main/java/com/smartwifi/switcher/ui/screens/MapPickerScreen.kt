@@ -1,20 +1,19 @@
 package com.smartwifi.switcher.ui.screens
 
-import android.annotation.SuppressLint
-import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
 import android.location.Location
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,12 +22,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.google.android.gms.location.LocationServices
 import com.smartwifi.switcher.data.GeoZone
+import com.smartwifi.switcher.service.WifiHelper
 import com.smartwifi.switcher.ui.theme.*
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -49,8 +50,11 @@ fun MapPickerScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var zoneName by remember { mutableStateOf("Mi Casa") }
-    var selectedLocation by remember { mutableStateOf(GeoPoint(-17.3935, -66.1570)) } // Default center
+    var selectedLocation by remember { mutableStateOf(GeoPoint(-17.3935, -66.1570)) }
     var radiusMeters by remember { mutableFloatStateOf(150f) }
+
+    var linkedSsid by remember { mutableStateOf<String?>(WifiHelper.getCurrentSsid(context)) }
+    var selectedBatteryMode by remember { mutableStateOf("HYBRID") } // HYBRID, WIFI_ONLY, GEOFENCE_ONLY
 
     var wifiOnEntry by remember { mutableStateOf(true) }
     var dataOffEntry by remember { mutableStateOf(true) }
@@ -61,7 +65,7 @@ fun MapPickerScreen(
     var circleOverlay by remember { mutableStateOf<Polygon?>(null) }
     var centerMarker by remember { mutableStateOf<Marker?>(null) }
 
-    // Fetch current GPS location on first open
+    // Fetch GPS location on first open
     LaunchedEffect(Unit) {
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
@@ -80,11 +84,10 @@ fun MapPickerScreen(
         circleOverlay?.let { mapView.overlays.remove(it) }
         centerMarker?.let { mapView.overlays.remove(it) }
 
-        // Create Circle polygon
         val circlePoints = Polygon.pointsAsCircle(selectedLocation, radiusMeters.toDouble())
         val polygon = Polygon(mapView).apply {
             points = circlePoints
-            fillPaint.color = AndroidColor.argb(70, 37, 99, 235) // PrimaryBlue with alpha
+            fillPaint.color = AndroidColor.argb(70, 37, 99, 235)
             fillPaint.style = Paint.Style.FILL
             outlinePaint.color = AndroidColor.rgb(37, 99, 235)
             outlinePaint.strokeWidth = 4f
@@ -92,7 +95,6 @@ fun MapPickerScreen(
         mapView.overlays.add(polygon)
         circleOverlay = polygon
 
-        // Create center pin marker
         val marker = Marker(mapView).apply {
             position = selectedLocation
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -108,7 +110,6 @@ fun MapPickerScreen(
         mapViewRef?.let { updateMapOverlays(it) }
     }
 
-    // Handle MapView Lifecycle
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -127,7 +128,7 @@ fun MapPickerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nueva Zona con Radio") },
+                title = { Text("Configurar Zona Inteligente") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -155,7 +156,9 @@ fun MapPickerScreen(
                             wifiOnAtEntry = wifiOnEntry,
                             dataOffAtEntry = dataOffEntry,
                             wifiOffAtExit = wifiOffExit,
-                            dataOnAtExit = dataOnExit
+                            dataOnAtExit = dataOnExit,
+                            linkedWifiSsid = linkedSsid,
+                            batteryMode = selectedBatteryMode
                         )
                         onSaveZone(newZone)
                     },
@@ -167,7 +170,7 @@ fun MapPickerScreen(
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Guardar y Activar Zona", color = Color.White)
+                    Text("Guardar y Activar Zona", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -179,11 +182,11 @@ fun MapPickerScreen(
                 .background(DarkBackground)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Map container
+            // Map View (only needed if not in pure WIFI_ONLY mode)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(280.dp)
             ) {
                 AndroidView(
                     factory = { ctx ->
@@ -193,7 +196,6 @@ fun MapPickerScreen(
                             controller.setZoom(16.5)
                             controller.setCenter(selectedLocation)
 
-                            // Tap on map listener to move location
                             val receiver = object : MapEventsReceiver {
                                 override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
                                     selectedLocation = p
@@ -210,7 +212,6 @@ fun MapPickerScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Current GPS location FAB button
                 IconButton(
                     onClick = {
                         try {
@@ -234,7 +235,7 @@ fun MapPickerScreen(
                 }
             }
 
-            // Controls & Settings Card
+            // Settings card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -244,17 +245,17 @@ fun MapPickerScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Configuración de la Ubicación",
+                        text = "Datos de la Zona",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextLight
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     OutlinedTextField(
                         value = zoneName,
                         onValueChange = { zoneName = it },
                         label = { Text("Nombre de la Zona") },
-                        placeholder = { Text("Ej. Mi Casa, Trabajo, Universidad") },
+                        placeholder = { Text("Ej. Casa, Trabajo, Depa") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight,
@@ -269,57 +270,143 @@ fun MapPickerScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Radius Slider
-                    Row(
+                    // SMART BATTERY SAVER: Link to Home Wi-Fi
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        colors = CardDefaults.cardColors(containerColor = DarkBackground),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Radio de Detección:", color = TextLight)
-                        Text(
-                            text = "${radiusMeters.roundToInt()} metros",
-                            color = PrimaryCyan,
-                            style = MaterialTheme.typography.titleMedium
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Wifi, contentDescription = null, tint = PrimaryCyan)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Vincular a tu Red Wi-Fi de Casa",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextLight
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "⚡ Al salir por la puerta, cuando se desconecta el Wi-Fi, la app prende tus megas AL INSTANTE con 0% de gasto de batería.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextMuted
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = linkedSsid?.let { "📶 $it" } ?: "Sin red Wi-Fi vinculada",
+                                    color = if (linkedSsid != null) AccentGreen else AccentOrange,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                OutlinedButton(
+                                    onClick = {
+                                        val detected = WifiHelper.getCurrentSsid(context)
+                                        if (detected != null) {
+                                            linkedSsid = detected
+                                            Toast.makeText(context, "Vinculado a: $detected", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Conéctate a tu Wi-Fi para detectarlo", Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCyan),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Detectar Red")
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Battery Mode selector
+                    Text(
+                        text = "Modo de Detección y Batería",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextLight
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    BatteryModeOption(
+                        title = "Híbrido Inteligente (Recomendado)",
+                        subtitle = "Usa antenas celulares al llegar y corte de Wi-Fi al salir. Batería < 1% al día.",
+                        isSelected = selectedBatteryMode == "HYBRID",
+                        onClick = { selectedBatteryMode = "HYBRID" }
+                    )
+
+                    BatteryModeOption(
+                        title = "Solo Wi-Fi (Zero GPS)",
+                        subtitle = "No usa GPS en lo absoluto. Detecta únicamente la red de casa. Consumo 0%.",
+                        isSelected = selectedBatteryMode == "WIFI_ONLY",
+                        onClick = { selectedBatteryMode = "WIFI_ONLY" }
+                    )
+
+                    BatteryModeOption(
+                        title = "Solo Ubicación GPS",
+                        subtitle = "Basado únicamente en radio geográfico.",
+                        isSelected = selectedBatteryMode == "GEOFENCE_ONLY",
+                        onClick = { selectedBatteryMode = "GEOFENCE_ONLY" }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Radius slider
+                    if (selectedBatteryMode != "WIFI_ONLY") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Radio de Detección:", color = TextLight)
+                            Text(
+                                text = "${radiusMeters.roundToInt()} metros",
+                                color = PrimaryCyan,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+
+                        Slider(
+                            value = radiusMeters,
+                            onValueChange = { radiusMeters = it },
+                            valueRange = 50f..800f,
+                            steps = 14,
+                            colors = SliderDefaults.colors(
+                                thumbColor = PrimaryCyan,
+                                activeTrackColor = PrimaryBlue,
+                                inactiveTrackColor = SurfaceDark
+                            )
                         )
                     }
 
-                    Slider(
-                        value = radiusMeters,
-                        onValueChange = { radiusMeters = it },
-                        valueRange = 50f..800f,
-                        steps = 14,
-                        colors = SliderDefaults.colors(
-                            thumbColor = PrimaryCyan,
-                            activeTrackColor = PrimaryBlue,
-                            inactiveTrackColor = SurfaceDark
-                        )
-                    )
-
-                    Text(
-                        text = "💡 Recomendado: 100m - 150m para que detecte justo al entrar a tu calle.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextMuted
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Divider(color = SurfaceDark)
                     Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = SurfaceDark)
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
                         text = "Acciones Automáticas",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextLight
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     SwitchOption(
-                        title = "Al entrar: Prender Wi-Fi",
+                        title = "Al llegar: Prender Wi-Fi",
                         checked = wifiOnEntry,
                         onCheckedChange = { wifiOnEntry = it }
                     )
 
                     SwitchOption(
-                        title = "Al entrar: Apagar Datos Móviles (Megas)",
+                        title = "Al llegar: Apagar Datos Móviles (Megas)",
                         checked = dataOffEntry,
                         onCheckedChange = { dataOffEntry = it }
                     )
@@ -336,6 +423,44 @@ fun MapPickerScreen(
                         onCheckedChange = { dataOnExit = it }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryModeOption(
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) PrimaryCyan else SurfaceDark,
+                shape = RoundedCornerShape(10.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = if (isSelected) SurfaceDark else DarkBackground),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(selectedColor = PrimaryCyan)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(title, color = TextLight, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                Text(subtitle, color = TextMuted, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

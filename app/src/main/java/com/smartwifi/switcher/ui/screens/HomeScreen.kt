@@ -1,6 +1,5 @@
 package com.smartwifi.switcher.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -91,6 +90,11 @@ fun HomeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Battery Optimization Banner
+            item {
+                BatteryOptimizerBanner()
+            }
+
             // Service & Status Card
             item {
                 StatusCard(
@@ -145,6 +149,49 @@ fun HomeScreen(
 }
 
 @Composable
+private fun BatteryOptimizerBanner() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = AccentGreen.copy(alpha = 0.2f),
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.BatterySaver,
+                        contentDescription = null,
+                        tint = AccentGreen,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = "Ahorro Inteligente Activo",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextLight
+                )
+                Text(
+                    text = "Consumo estimado: < 1% al día • Basado en red Wi-Fi y antenas sin GPS continuo.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextMuted
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun StatusCard(
     isServiceActive: Boolean,
     isShizukuActive: Boolean,
@@ -171,7 +218,7 @@ private fun StatusCard(
                         color = if (isServiceActive) AccentGreen else AccentRed
                     )
                     Text(
-                        text = if (isServiceActive) "Detectando entradas y salidas en segundo plano" else "El monitoreo automático está apagado",
+                        text = if (isServiceActive) "Supervisando zonas y redes Wi-Fi sin gastar batería" else "El monitoreo automático está apagado",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextMuted
                     )
@@ -278,7 +325,7 @@ private fun ZoneItemCard(
                         fontWeight = FontWeight.Bold,
                         color = if (zone.isEnabled) TextLight else TextMuted
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
@@ -292,13 +339,27 @@ private fun ZoneItemCard(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
+
+                        if (!zone.linkedWifiSsid.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = AccentGreen.copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    text = "📶 ${zone.linkedWifiSsid}",
+                                    color = AccentGreen,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(
                         checked = zone.isEnabled,
-                        onCheckedChange = onToggle,
+                        onToggle,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = PrimaryBlue,
@@ -381,7 +442,7 @@ private fun EmptyZonesCard(onAddClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Agrega tu casa y define un radio en metros para que la app apague los datos móviles y prenda tu Wi-Fi automáticamente cuando llegues.",
+                text = "Agrega tu casa y vincula tu Wi-Fi para que la app apague los datos al llegar y los prenda al salir, sin gastar batería.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextMuted,
                 modifier = Modifier.padding(horizontal = 8.dp)

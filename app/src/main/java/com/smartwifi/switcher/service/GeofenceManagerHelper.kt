@@ -30,18 +30,20 @@ class GeofenceManagerHelper(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun addOrUpdateGeofence(zone: GeoZone, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
-        if (!zone.isEnabled) {
+        if (!zone.isEnabled || zone.batteryMode == "WIFI_ONLY") {
             removeGeofence(zone.id)
-            onResult(true, "Zona desactivada")
+            onResult(true, "Zona desactivada o en modo Solo Wi-Fi (Sin consumo de GPS)")
             return
         }
 
+        // Ultra-efficient battery tuning:
+        // Responsiveness of 30s allows Android to batch location checks with cell towers and Wi-Fi scans
         val geofence = Geofence.Builder()
             .setRequestId(zone.id.toString())
             .setCircularRegion(zone.latitude, zone.longitude, zone.radiusMeters)
             .setExpirationDuration(Geofence.NEVER_EXPIRE)
             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
-            .setNotificationResponsiveness(10000) // 10 seconds responsiveness
+            .setNotificationResponsiveness(30000) // 30s = Máximo ahorro de batería
             .build()
 
         val request = GeofencingRequest.Builder()
@@ -52,7 +54,7 @@ class GeofenceManagerHelper(private val context: Context) {
         try {
             geofencingClient.addGeofences(request, geofencePendingIntent)
                 .addOnSuccessListener {
-                    Log.d(TAG, "Geofence agregada exitosamente: ${zone.name}")
+                    Log.d(TAG, "Geofence optimizada registrada: ${zone.name} (${zone.batteryMode})")
                     onResult(true, null)
                 }
                 .addOnFailureListener { exception ->
@@ -77,17 +79,18 @@ class GeofenceManagerHelper(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun syncAllActiveZones(activeZones: List<GeoZone>) {
-        // Clear all then re-add active
         geofencingClient.removeGeofences(geofencePendingIntent).addOnCompleteListener {
-            if (activeZones.isEmpty()) return@addOnCompleteListener
+            // Only add zones that use geofencing (HYBRID or GEOFENCE_ONLY)
+            val eligibleZones = activeZones.filter { it.batteryMode != "WIFI_ONLY" }
+            if (eligibleZones.isEmpty()) return@addOnCompleteListener
 
-            val geofenceList = activeZones.map { zone ->
+            val geofenceList = eligibleZones.map { zone ->
                 Geofence.Builder()
                     .setRequestId(zone.id.toString())
                     .setCircularRegion(zone.latitude, zone.longitude, zone.radiusMeters)
                     .setExpirationDuration(Geofence.NEVER_EXPIRE)
                     .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
-                    .setNotificationResponsiveness(10000)
+                    .setNotificationResponsiveness(30000)
                     .build()
             }
 

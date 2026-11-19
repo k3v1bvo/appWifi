@@ -16,5 +16,7 @@ data class GeoZone(
     val dataOffAtEntry: Boolean = true,
     val wifiOffAtExit: Boolean = true,
     val dataOnAtExit: Boolean = true,
-    val lastTriggeredAt: Long = 0L
+    val lastTriggeredAt: Long = 0L,
+    val linkedWifiSsid: String? = null, // Red Wi-Fi vinculada (ej. Wi-Fi de casa)
+    val batteryMode: String = "HYBRID"   // HYBRID (Zero Batería), GEOFENCE_ONLY, WIFI_ONLY
 )
