@@ -6,16 +6,13 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeveloperMode
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.smartwifi.switcher.ui.theme.*
 
@@ -34,20 +32,31 @@ fun XiaomiGuideDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceDark,
+        containerColor = SurfaceElevated,
+        modifier = Modifier.border(1.dp, SurfaceBorder, RoundedCornerShape(20.dp)),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Configuración Xiaomi / MIUI",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = PrimaryCyan
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = TextMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.SettingsSuggest,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Configuración MIUI / HyperOS",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ContentPrimary
+                    )
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = ContentTertiary)
                 }
             }
         },
@@ -58,66 +67,66 @@ fun XiaomiGuideDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = "En tu Redmi Note 11 (MIUI / HyperOS), debes hacer estos 3 pasos para que el sistema no apague la app en segundo plano y pueda alternar los datos:",
+                    text = "Ajustes esenciales para garantizar que el gestor de memoria de Xiaomi mantenga el servicio activo:",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextLight
+                    color = ContentSecondary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Step 1: Autostart
                 GuideStepItem(
                     stepNumber = "1",
-                    title = "Inicio Automático",
-                    description = "Permite que la app despierte sola cuando reinicies o salgas de casa.",
-                    buttonText = "Abrir Inicio Automático",
-                    icon = Icons.Default.PlayArrow,
+                    title = "Inicio automático",
+                    description = "Permite la reactivación del servicio tras reinicios del terminal.",
+                    buttonText = "Configurar inicio",
+                    icon = Icons.Outlined.PowerSettingsNew,
                     onClick = { openMiuiAutostart(context) }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Step 2: Battery Saver
                 GuideStepItem(
                     stepNumber = "2",
-                    title = "Batería: Sin Restricciones",
-                    description = "Evita que MIUI cierre la app al bloquear la pantalla.",
-                    buttonText = "Ajustar Batería",
-                    icon = Icons.Default.BatteryChargingFull,
+                    title = "Batería sin restricciones",
+                    description = "Exime la app del cierre forzoso al bloquear el dispositivo.",
+                    buttonText = "Eximir de ahorro",
+                    icon = Icons.Outlined.BatterySaver,
                     onClick = { openBatteryOptimization(context) }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Step 3: Shizuku / Wireless Debugging
                 GuideStepItem(
                     stepNumber = "3",
-                    title = "Activar Shizuku (Para Datos)",
-                    description = "Permite apagar los megas sin Root mediante Depuración Inalámbrica.",
-                    buttonText = "Abrir Shizuku / Play Store",
-                    icon = Icons.Default.Bolt,
+                    title = "Permisos de sistema (Shizuku)",
+                    description = "Concede acceso a la ejecución de órdenes de red mediante depuración inalámbrica.",
+                    buttonText = "Abrir Shizuku",
+                    icon = Icons.Outlined.Terminal,
                     onClick = { openShizukuOrStore(context) }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 GuideStepItem(
                     stepNumber = "4",
-                    title = "Opciones de Desarrollador",
-                    description = "Activa 'Depuración USB (Ajustes de seguridad)' en MIUI.",
-                    buttonText = "Opciones Desarrollador",
-                    icon = Icons.Default.DeveloperMode,
+                    title = "Opciones de desarrollo",
+                    description = "Habilita 'Depuración USB (Ajustes de seguridad)' en MIUI.",
+                    buttonText = "Opciones de desarrollador",
+                    icon = Icons.Outlined.DeveloperMode,
                     onClick = { openDeveloperOptions(context) }
                 )
             }
         },
         confirmButton = {
-            Button(
+            FilledTonalButton(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = SurfaceCard,
+                    contentColor = ContentPrimary
+                )
             ) {
-                Text("Entendido, todo listo", color = Color.White)
+                Text("Entendido")
             }
         }
     )
@@ -132,39 +141,42 @@ private fun GuideStepItem(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(10.dp),
+        color = SurfaceCard,
+        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = PrimaryBlue,
+                    color = AccentBlue.copy(alpha = 0.2f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.4f)),
                     modifier = Modifier.size(24.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(stepNumber, color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        Text(stepNumber, color = AccentBlueGlow, style = MaterialTheme.typography.labelSmall)
                     }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(title, style = MaterialTheme.typography.titleMedium, color = TextLight)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, color = ContentPrimary)
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = ContentSecondary)
+            Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedButton(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCyan)
+                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder),
+                contentPadding = PaddingValues(vertical = 6.dp)
             ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(buttonText)
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = AccentCyan)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(buttonText, style = MaterialTheme.typography.labelMedium, color = ContentPrimary)
             }
         }
     }

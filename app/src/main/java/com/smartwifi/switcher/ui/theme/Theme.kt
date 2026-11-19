@@ -1,8 +1,6 @@
 package com.smartwifi.switcher.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -12,15 +10,16 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlue,
-    secondary = PrimaryCyan,
-    background = DarkBackground,
-    surface = SurfaceDark,
+    primary = AccentBlueGlow,
+    secondary = AccentCyan,
+    background = AppBg,
+    surface = SurfaceElevated,
     surfaceVariant = SurfaceCard,
-    onPrimary = TextLight,
-    onBackground = TextLight,
-    onSurface = TextLight,
-    onSurfaceVariant = TextMuted
+    outline = SurfaceBorder,
+    onPrimary = ContentPrimary,
+    onBackground = ContentPrimary,
+    onSurface = ContentPrimary,
+    onSurfaceVariant = ContentSecondary
 )
 
 @Composable
@@ -32,9 +31,10 @@ fun SmartWifiSwitchTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
+            window.statusBarColor = AppBg.toArgb()
+            window.navigationBarColor = AppBg.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
         }
     }
 

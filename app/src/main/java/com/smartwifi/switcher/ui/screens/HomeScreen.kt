@@ -1,19 +1,27 @@
 package com.smartwifi.switcher.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.smartwifi.switcher.data.ActivityLog
 import com.smartwifi.switcher.data.GeoZone
 import com.smartwifi.switcher.ui.theme.*
@@ -63,111 +71,124 @@ fun HomeScreen(
     }
 
     Scaffold(
+        containerColor = AppBg,
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.WifiTethering,
-                            contentDescription = null,
-                            tint = PrimaryCyan
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Smart Wifi Switch",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GlowBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.WifiProtectedSetup,
+                                contentDescription = null,
+                                tint = AccentBlueGlow,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Smart Wifi Switch",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ContentPrimary
+                            )
+                            Text(
+                                text = "Control autónomo de datos",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ContentTertiary
+                            )
+                        }
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showTestBench = true }) {
-                        Icon(
-                            Icons.Default.Science,
-                            contentDescription = "Probar Conexiones",
-                            tint = AccentGreen
-                        )
-                    }
-                    IconButton(onClick = { showLogsDialog = true }) {
-                        Icon(
-                            Icons.Default.History,
-                            contentDescription = "Historial",
-                            tint = PrimaryCyan
-                        )
-                    }
                     IconButton(onClick = { showXiaomiGuide = true }) {
                         Icon(
-                            Icons.Default.HelpOutline,
-                            contentDescription = "Guía Xiaomi",
-                            tint = TextMuted
+                            Icons.Outlined.HelpOutline,
+                            contentDescription = "Configuración Xiaomi",
+                            tint = ContentSecondary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SurfaceDark,
-                    titleContentColor = TextLight
+                    containerColor = AppBg
                 )
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = onAddZoneClick,
-                containerColor = PrimaryBlue,
+                containerColor = AccentBlue,
                 contentColor = Color.White,
-                icon = { Icon(Icons.Default.AddLocationAlt, contentDescription = null) },
-                text = { Text("Nueva Zona") }
-            )
+                shape = RoundedCornerShape(16.dp),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Nueva zona", style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(DarkBackground)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Battery Optimization Banner
             item {
-                BatteryOptimizerBanner()
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // Service & Status Card
+            // System State Hero
             item {
-                StatusCard(
+                SystemHeroCard(
                     isServiceActive = isServiceActive,
                     isShizukuActive = isShizukuActive,
                     onToggleService = onToggleService,
                     onRequestShizuku = onRequestShizukuPermission,
-                    onOpenGuide = { showXiaomiGuide = true },
-                    onOpenTest = { showTestBench = true }
+                    onOpenTest = { showTestBench = true },
+                    onOpenLogs = { showLogsDialog = true },
+                    onOpenGuide = { showXiaomiGuide = true }
                 )
             }
 
             // Section Header
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Mis Zonas Guardadas",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextLight
+                        text = "ZONAS CONFIGURADAS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ContentTertiary
                     )
                     Text(
-                        text = "${zones.size} configuradas",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted
+                        text = "${zones.size} total",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ContentTertiary
                     )
                 }
             }
 
-            // Empty State
+            // Zone List or Empty State
             if (zones.isEmpty()) {
                 item {
-                    EmptyZonesCard(onAddClick = onAddZoneClick)
+                    EmptyStateCard(onAddClick = onAddZoneClick)
                 }
             } else {
                 items(zones, key = { it.id }) { zone ->
@@ -180,178 +201,178 @@ fun HomeScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(72.dp))
+                Spacer(modifier = Modifier.height(88.dp))
             }
         }
     }
 }
 
 @Composable
-private fun BatteryOptimizerBanner() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = AccentGreen.copy(alpha = 0.2f),
-                modifier = Modifier.size(38.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.BatterySaver,
-                        contentDescription = null,
-                        tint = AccentGreen,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Text(
-                    text = "Ahorro Inteligente Silencioso",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextLight
-                )
-                Text(
-                    text = "Consumo < 1% al día • Sin notificaciones invasivas ni alertas molestas.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusCard(
+private fun SystemHeroCard(
     isServiceActive: Boolean,
     isShizukuActive: Boolean,
     onToggleService: (Boolean) -> Unit,
     onRequestShizuku: () -> Unit,
-    onOpenGuide: () -> Unit,
-    onOpenTest: () -> Unit
+    onOpenTest: () -> Unit,
+    onOpenLogs: () -> Unit,
+    onOpenGuide: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceElevated),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Service Switch
+        Column(modifier = Modifier.padding(18.dp)) {
+            // Header Row: Status Pill & Master Switch
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isServiceActive) "Protección Activa" else "Protección Pausada",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (isServiceActive) AccentGreen else AccentRed
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isServiceActive) AccentEmerald else AccentRose)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isServiceActive) "Supervisando Wi-Fi de forma silenciosa" else "El monitoreo automático está apagado",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted
+                        text = if (isServiceActive) "SISTEMA ACTIVO" else "SISTEMA EN PAUSA",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isServiceActive) AccentEmerald else AccentRose
                     )
                 }
+
                 Switch(
                     checked = isServiceActive,
                     onCheckedChange = onToggleService,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = PrimaryBlue,
-                        uncheckedThumbColor = TextMuted,
-                        uncheckedTrackColor = SurfaceDark
+                        checkedTrackColor = AccentBlue,
+                        uncheckedThumbColor = ContentSecondary,
+                        uncheckedTrackColor = SurfaceCard,
+                        uncheckedBorderColor = SurfaceBorder
                     )
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            Divider(color = SurfaceDark)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = if (isServiceActive) "Protección de datos en ejecución" else "Monitoreo automático detenido",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = ContentPrimary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Alterna Wi-Fi y datos móviles por proximidad de red y geocercas en segundo plano sin drenaje de batería.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ContentSecondary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = SurfaceBorder, thickness = 1.dp)
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Shizuku Automation Status
+            // Sub-status Row: Shizuku / Engine Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isShizukuActive) AccentGreen.copy(alpha = 0.2f) else AccentOrange.copy(alpha = 0.2f),
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                if (isShizukuActive) Icons.Default.Bolt else Icons.Default.WarningAmber,
-                                contentDescription = null,
-                                tint = if (isShizukuActive) AccentGreen else AccentOrange,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (isShizukuActive) Icons.Outlined.CheckCircle else Icons.Outlined.WarningAmber,
+                        contentDescription = null,
+                        tint = if (isShizukuActive) AccentEmerald else AccentAmber,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = if (isShizukuActive) "Control de Megas: Automático" else "Control de Megas: Manual",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextLight
+                            text = if (isShizukuActive) "Control de red automático" else "Requiere enlace Shizuku",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = ContentPrimary
                         )
                         Text(
-                            text = if (isShizukuActive) "Shizuku Conectado" else "Requiere permiso Shizuku o Root",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
+                            text = if (isShizukuActive) "Privilegios de sistema autorizados" else "Toca para conectar el servicio",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ContentTertiary
                         )
                     }
                 }
 
                 if (!isShizukuActive) {
-                    Button(
+                    FilledTonalButton(
                         onClick = onRequestShizuku,
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentOrange),
                         shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AccentAmber.copy(alpha = 0.15f),
+                            contentColor = AccentAmber
+                        )
                     ) {
-                        Text("Activar", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("Vincular", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+            // Utility Toolbar: Diagnostic, Logs, System Settings
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(
+                    icon = Icons.Outlined.Speed,
+                    label = "Diagnóstico",
                     onClick = onOpenTest,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGreen)
-                ) {
-                    Icon(Icons.Default.Science, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Probar Ahora")
-                }
-
-                OutlinedButton(
+                    modifier = Modifier.weight(1f)
+                )
+                ActionButton(
+                    icon = Icons.Outlined.FormatListBulleted,
+                    label = "Registro",
+                    onClick = onOpenLogs,
+                    modifier = Modifier.weight(1f)
+                )
+                ActionButton(
+                    icon = Icons.Outlined.SettingsSuggest,
+                    label = "Ajustes Xiaomi",
                     onClick = onOpenGuide,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCyan)
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Guía Xiaomi")
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(38.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = SurfaceCard,
+        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = ContentSecondary, modifier = Modifier.size(15.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, color = ContentPrimary)
         }
     }
 }
@@ -363,48 +384,49 @@ private fun ZoneItemCard(
     onDelete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SurfaceBorder, RoundedCornerShape(14.dp)),
         colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(14.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Zone Top Bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = zone.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (zone.isEnabled) TextLight else TextMuted
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = PrimaryBlue.copy(alpha = 0.2f),
-                            modifier = Modifier.padding(end = 6.dp)
-                        ) {
-                            Text(
-                                text = "Radio: ${zone.radiusMeters.roundToInt()}m",
-                                color = PrimaryCyan,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(if (zone.isEnabled) AccentEmerald else ContentTertiary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = zone.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (zone.isEnabled) ContentPrimary else ContentTertiary
+                        )
+                    }
 
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = AccentOrange.copy(alpha = 0.2f)
-                        ) {
-                            Text(
-                                text = "Buffer: ${zone.disconnectBufferSeconds}s",
-                                color = AccentOrange,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Meta Tags Row
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        MetaTag(text = "${zone.radiusMeters.roundToInt()} m")
+                        MetaTag(text = "Buffer ${zone.disconnectBufferSeconds}s")
+                        if (zone.batteryMode == "WIFI_ONLY") {
+                            MetaTag(text = "Solo Wi-Fi")
+                        } else {
+                            MetaTag(text = "Híbrido")
                         }
                     }
                 }
@@ -412,58 +434,84 @@ private fun ZoneItemCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(
                         checked = zone.isEnabled,
-                        onToggle,
+                        onCheckedChange = onToggle,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = PrimaryBlue,
-                            uncheckedThumbColor = TextMuted,
-                            uncheckedTrackColor = SurfaceDark
+                            checkedTrackColor = AccentBlue,
+                            uncheckedThumbColor = ContentSecondary,
+                            uncheckedTrackColor = SurfaceElevated,
+                            uncheckedBorderColor = SurfaceBorder
                         )
                     )
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = "Eliminar", tint = AccentRed)
+                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Outlined.Delete,
+                            contentDescription = "Eliminar zona",
+                            tint = ContentTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
 
-            if (zone.getSsidList().isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Wifi, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+            // Linked Wi-Fi Networks
+            val ssids = zone.getSsidList()
+            if (ssids.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.Wifi,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Redes: ${zone.getSsidList().joinToString(", ")}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = AccentGreen
+                        text = ssids.joinToString(" • "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ContentSecondary,
+                        fontFamily = FontFamily.Monospace
                     )
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+            Divider(color = SurfaceBorder, thickness = 1.dp)
             Spacer(modifier = Modifier.height(10.dp))
-            Divider(color = SurfaceDark)
-            Spacer(modifier = Modifier.height(8.dp))
 
-            // Action summary
+            // Action Rules Grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Al entrar a casa:", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                     Text(
-                        text = "📶 Wi-Fi ON • 📱 Datos OFF",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = AccentGreen,
-                        fontWeight = FontWeight.Medium
+                        text = "AL INGRESAR",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ContentTertiary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Wi-Fi On • Datos Off",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (zone.isEnabled) AccentEmerald else ContentTertiary
                     )
                 }
-                Column {
-                    Text("Al salir de casa:", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "📶 Wi-Fi OFF • 📱 Datos ON",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PrimaryCyan,
-                        fontWeight = FontWeight.Medium
+                        text = "AL SALIR",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ContentTertiary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Wi-Fi Off • Datos On",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (zone.isEnabled) AccentCyan else ContentTertiary
                     )
                 }
             }
@@ -472,9 +520,9 @@ private fun ZoneItemCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(zone.lastTriggeredAt))
                 Text(
-                    text = "Última activación: $dateStr",
+                    text = "Última transición: $dateStr",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted
+                    color = ContentTertiary
                 )
             }
         }
@@ -482,46 +530,72 @@ private fun ZoneItemCard(
 }
 
 @Composable
-private fun EmptyZonesCard(onAddClick: () -> Unit) {
+private fun MetaTag(text: String) {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = SurfaceElevated,
+        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = ContentSecondary,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmptyStateCard(onAddClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceElevated),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                Icons.Default.ShareLocation,
-                contentDescription = null,
-                tint = PrimaryBlue,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(SurfaceCard),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.Sensors,
+                    contentDescription = null,
+                    tint = ContentSecondary,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Sin zonas configuradas",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextLight
+                color = ContentPrimary
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Agrega tu casa y vincula tus redes Wi-Fi (2.4G y 5G) para que la app apague los datos al llegar y los prenda al salir, de manera silenciosa y sin gastar batería.",
+                text = "Define el perímetro de tu hogar y vincula tus redes Wi-Fi para iniciar la automatización sin intervención manual.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextMuted,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                color = ContentSecondary,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             Button(
                 onClick = onAddClick,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Marcar Mi Casa en el Mapa")
+                Icon(Icons.Filled.AddLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Definir primera zona", style = MaterialTheme.typography.labelLarge)
             }
         }
     }

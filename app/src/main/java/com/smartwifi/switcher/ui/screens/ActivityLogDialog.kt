@@ -1,19 +1,20 @@
 package com.smartwifi.switcher.ui.screens
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.FormatListBulleted
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.smartwifi.switcher.data.ActivityLog
@@ -30,7 +31,8 @@ fun ActivityLogDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceDark,
+        containerColor = SurfaceElevated,
+        modifier = Modifier.border(1.dp, SurfaceBorder, RoundedCornerShape(20.dp)),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -38,16 +40,22 @@ fun ActivityLogDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.History, contentDescription = null, tint = PrimaryCyan)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        Icons.Outlined.FormatListBulleted,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Historial de Actividad",
+                        text = "Historial de transiciones",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextLight
+                        fontWeight = FontWeight.SemiBold,
+                        color = ContentPrimary
                     )
                 }
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = TextMuted)
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = ContentTertiary)
                 }
             }
         },
@@ -56,13 +64,14 @@ fun ActivityLogDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(vertical = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Aún no hay eventos registrados.\nLos cambios de Wi-Fi y datos aparecerán aquí.",
+                        text = "Sin registros recientes.\nLas transiciones automáticas se mostrarán aquí.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted
+                        color = ContentTertiary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             } else {
@@ -73,39 +82,41 @@ fun ActivityLogDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(logs, key = { it.id }) { log ->
-                        val timeStr = SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault()).format(Date(log.timestamp))
-                        Card(
+                        val timeStr = SimpleDateFormat("dd MMM • HH:mm:ss", Locale.getDefault()).format(Date(log.timestamp))
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            color = SurfaceCard,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
                         ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = log.title,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelLarge,
                                         color = when (log.type) {
-                                            "ARRIVED" -> AccentGreen
-                                            "DEPARTED" -> PrimaryCyan
-                                            "WIFI_RESTORED" -> AccentOrange
-                                            else -> TextLight
+                                            "ARRIVED" -> AccentEmerald
+                                            "DEPARTED" -> AccentCyan
+                                            "WIFI_RESTORED" -> AccentAmber
+                                            else -> ContentPrimary
                                         }
                                     )
                                     Text(
                                         text = timeStr,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = TextMuted
+                                        fontFamily = FontFamily.Monospace,
+                                        color = ContentTertiary
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(3.dp))
                                 Text(
                                     text = log.description,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = TextMuted
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = ContentSecondary
                                 )
                             }
                         }
@@ -116,16 +127,24 @@ fun ActivityLogDialog(
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (logs.isNotEmpty()) {
-                    TextButton(onClick = onClearLogs) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = AccentRed, modifier = Modifier.size(16.dp))
+                    OutlinedButton(
+                        onClick = onClearLogs,
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = AccentRose, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Limpiar", color = AccentRed)
+                        Text("Limpiar", style = MaterialTheme.typography.labelMedium, color = AccentRose)
                     }
                 }
-                Button(
+                FilledTonalButton(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = SurfaceCard,
+                        contentColor = ContentPrimary
+                    )
                 ) {
                     Text("Cerrar")
                 }
